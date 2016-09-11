@@ -1,5 +1,6 @@
 import nltk
-from nltk.tag.stanford import POSTagger
+from nltk.tag.stanford import StanfordPOSTagger
+#from nltk.tag.stanford import StanfordTagger
 import time
 import pexpect
 
@@ -43,10 +44,8 @@ class StanfordTagger(object):
         break
 
     tagged_list = list(filter(None, incoming.split('\r\n')))
-    for item in tagged_list:
-      item.replace('_', ' ')
     tagged_string = [item for item in tagged_list if item not in [text]][0]
-    result = POSTagger.parse_output(POSTagger, tagged_string)
+    result = StanfordPOSTagger.parse_output(StanfordPOSTagger, tagged_string)
     return result
 
   def parse(self, text):

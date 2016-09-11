@@ -1,0 +1,10 @@
+"As an Administrator, I receive an email when a new event is added by a partner so that I can respond to it.",Given the account balance is $100 when the account holder requests $20 then the account balance should be $80
+Analyse CSV export files.,
+"As a Visitor, I'm able to optionally register after I buy an event ticket, so that I can quickly buy another tiket (in the future).",
+"As a Visitor, I am able to see the criteria that I searched on highlighted in the result records, so that I can more easily see why a particular event matches my search.",
+"As a User, I am able to select and add a preferred payment method.",
+"As a User, I want to use the contact form, so that I can contact the administrator.",
+"As an Administrator I'm able to completely remove a User from the site, so that the account is no longer available. ",
+"As an Administrator, I'm able to search through the list of Users so that I can more easily find a particular User.",
+"As an Admin, I'm able to import Event Records",
+"As an Admin, I'm able to import Event Records",

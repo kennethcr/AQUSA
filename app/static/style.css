@@ -20,7 +20,7 @@ p {
 }
 
 
-.defect_box {
+.error_box {
   float: left;
   width: 99%;
   height: auto;
@@ -49,18 +49,18 @@ p {
 }
 
 
-.defect_severity {
+.error_severity {
   display: inline;
   text-align: center;
   height: inherit;
 }
 
-p.defect_title {
+p.error_title {
   font-weight: bold;
   font-size: 16px;
 }
 
-p.defect_explanation {
+p.error_explanation {
   font-style: italic;
 }
 
@@ -95,7 +95,7 @@ p.defect_explanation {
   display: inline;
 }
 
-.defect-circle {
+.error-circle {
   display: inline-block;
   border-radius: 50%;
 
@@ -110,11 +110,11 @@ p.defect_explanation {
   position: relative;
 }
 
-.defect-circle .height-fix {
+.error-circle .height-fix {
   margin-top: 100%;
 }
 
-.defect-circle .defect-circle-content {
+.error-circle .error-circle-content {
   position: absolute;
   left: 0;
   top: 50%;
@@ -124,15 +124,15 @@ p.defect_explanation {
   margin-top: -16px; /* Note, this must be half the font size */
 }
 
-.severe-defects {
+.severe-errors {
   background: #FF6A70;
 }
 
-.medium-defects {
+.medium-errors {
   background: #FFD670;
 }
 
-.minor-defects {
+.minor-errors {
   background: #ddd;
 }
 
@@ -144,35 +144,30 @@ p.defect_explanation {
   background: #C5FF74;
 }
 
-.defect-text {
+.error-text {
   font: 32px Arial, sans-serif;
   display: inline-block;
   vertical-align: top;
   margin-top: 12px;
 }
 
-.defect-block {
+.error-block {
   padding: 10px 0 10px 10px;
   border: 2px solid #666;
   height:80px;
 }
 
-.left-defect-block {
+.left-error-block {
   float: left;
   display: inline-block;
   width: 50%;
 }
 
-.right-defect-block {
+.right-error-block {
   display: inline-block;
   width: 50%;
 }
 
 .upload-us-button {
   margin-top: 12px;
-}
-
-.fix-all-btn {
-  margin-top: 30px;
-  margin-right: 20px;
 }

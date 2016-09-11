@@ -1,6 +1,6 @@
 Automatic Quality User Story Artisan Prototype - Backend
 =======
-This is an implementation of the AQUSA tool described in http://bit.ly/aqusa-paper
+This is an implementation of the AQUSA tool described in http://bit.ly/1IveMpa
 
 ### Installation
   * Tested with Python 3.4
@@ -30,6 +30,3 @@ As a demo, you can browse to '/unique_string/project/upload_file' and upload a s
 
 Code Improvements
 -------
-
-### Note
-This is a prototype application that's still quite difficult to figure out. Future versions will be much improved.
