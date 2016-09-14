@@ -6,7 +6,7 @@ This is an implementation of the AQUSA tool described in http://bit.ly/1IveMpa
   * Tested with Python 3.4
   * Install Flask: `pip install Flask`
   * Install libraries using `pip install -r requirements.txt`
-  * Create a database
+  * Create a database on Postgres
   * Delete the folder migrations.
   * Comment the line: `manager.add_command('translate', translate())` inside manage.py file.
   * Run the command: `./manage.py db init` in order to create all the migration files.
@@ -21,8 +21,8 @@ This is an implementation of the AQUSA tool described in http://bit.ly/1IveMpa
   * Then, with the Download window opened, go to the tab 'Models' and select 'punkt'. Click to Download button, then it should work.
   * Run the translations with `./manage.py translate`. This will throw an error, but this is not a problem.
   * Test if the application works by running `nosetests`
-  * Run server by executing ./run.py
-  * Or run shell by executing ./shell.py
+  * Run server by executing `./run.py`
+  * Or run shell by executing `./shell.py`
 
 ### Instructions for installing the stanford dependency
   * Download the stanford POStagger from

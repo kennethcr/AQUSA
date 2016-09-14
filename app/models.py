@@ -85,12 +85,152 @@ class Story(db.Model):
         false_positive.delete()
     return self
 
+class Criteria(db.Model):
+  id = db.Column(db.Integer, primary_key=True)
+  text = db.Column(db.Text)
+  give = db.Column(db.Text)
+  when = db.Column(db.Text)
+  then = db.Column(db.Text)
+  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+  # errors = db.relationship('Error', backref='story', lazy='dynamic', cascade='save-update, merge, delete')
+
+  def __repr__(self):
+    return '<criteria: %r, text=%s>' % (self.id, self.text)
+
+  def serialize(self):
+    class_dict = self.__dict__
+    del class_dict['_sa_instance_state']
+    return class_dict
+
+  def create(text, project_id, analyze=False):
+    criteria = Criteria(text=text, project_id=project_id)
+    db.session.add(criteria)
+    db.session.commit()
+    db.session.merge(criteria)
+    criteria.chunk()
+    if analyze: criteria.analyze()
+    return criteria
+
+  def save(self):
+    db.session.add(self)
+    db.session.commit()
+    db.session.merge(self)
+    return self
+
+  def delete(self):
+    db.session.delete(self)
+    db.session.commit()
+
+  def chunk(self):
+    CriteriaChunker.chunk_criteria(self)
+    return self
+
+  def re_chunk(self):
+    self.give = None
+    self.when = None
+    self.then = None
+    CriteriaChunker.chunk_criteria(self)
+    return self
+
+  def analyze(self):
+    WellFormedAnalyzer.well_formed(self)
+    Analyzer.atomic(self)
+    Analyzer.unique(self, True)
+    MinimalAnalyzer.minimal(self)
+    #Analyzer.uniform(self)
+    self.remove_duplicates_of_false_positives()
+    return self
+
+  def re_analyze(self):
+    for error in Error.query.filter_by(story=self, false_positive=False).all():
+      error.delete()
+    self.analyze()
+    return self
+
+  def remove_duplicates_of_false_positives(self):
+    for false_positive in self.errors.filter_by(false_positive=True):
+      duplicates = Error.query.filter_by(criteria=self, kind=false_positive.kind, subkind=false_positive.subkind, false_positive=False).all()
+      if duplicates:
+        for duplicate in duplicates:
+          duplicate.delete()
+      else:
+        false_positive.delete()
+    return self
+
+class Title(db.Model):
+  id = db.Column(db.Integer, primary_key=True)
+  text = db.Column(db.Text)
+  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+  # errors = db.relationship('Error', backref='story', lazy='dynamic', cascade='save-update, merge, delete')
+
+  def __repr__(self):
+    return '<title: %r, text=%s>' % (self.id, self.text)
+
+  def serialize(self):
+    class_dict = self.__dict__
+    del class_dict['_sa_instance_state']
+    return class_dict
+
+  def create(text, project_id, analyze=False):
+    title = Title(text=text, project_id=project_id)
+    db.session.add(title)
+    db.session.commit()
+    db.session.merge(title)
+    title.chunk()
+    if analyze: title.analyze()
+    return title
+
+  def save(self):
+    db.session.add(self)
+    db.session.commit()
+    db.session.merge(self)
+    return self
+
+  def delete(self):
+    db.session.delete(self)
+    db.session.commit()
+
+  def chunk(self):
+    TitleChunker.chunk_title(self)
+    return self
+
+  def re_chunk(self):
+    self.title = None
+    TitleChunker.chunk_title(self)
+    return self
+
+  def analyze(self):
+    WellFormedAnalyzer.well_formed(self)
+    Analyzer.atomic(self)
+    Analyzer.unique(self, True)
+    MinimalAnalyzer.minimal(self)
+    #Analyzer.uniform(self)
+    self.remove_duplicates_of_false_positives()
+    return self
+
+  def re_analyze(self):
+    for error in Error.query.filter_by(story=self, false_positive=False).all():
+      error.delete()
+    self.analyze()
+    return self
+
+  def remove_duplicates_of_false_positives(self):
+    for false_positive in self.errors.filter_by(false_positive=True):
+      duplicates = Error.query.filter_by(title=self, kind=false_positive.kind, subkind=false_positive.subkind, false_positive=False).all()
+      if duplicates:
+        for duplicate in duplicates:
+          duplicate.delete()
+      else:
+        false_positive.delete()
+    return self
+
 
 class Project(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   name = db.Column(db.String(120), index=True, nullable=False)
   format = db.Column(db.Text, nullable=True, default="As a,I'm able to,So that")
   stories = db.relationship('Story', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
+  criterias = db.relationship('Criteria', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
   errors = db.relationship('Error', backref='project', lazy='dynamic')
 
   def __repr__(self):
@@ -191,6 +331,100 @@ class Error(db.Model):
     story = self.story
     CorrectError.correct_minor_issue(self)
     return story
+
+class ErrorCriteria(db.Model):
+  id = db.Column(db.Integer, primary_key=True)
+  highlight = db.Column(db.Text, nullable=False)
+  kind = db.Column(db.String(120), index=True,  nullable=False)
+  subkind = db.Column(db.String(120), nullable=False)
+  severity = db.Column(db.String(120), nullable=False)
+  false_positive = db.Column(db.Boolean, default=False, nullable=False)
+  criteria_id = db.Column(db.Integer, db.ForeignKey('criteria.id'), nullable=False)
+  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+
+  def __repr__(self):
+    return '<Error: %s, highlight=%s, kind=%s>' % (self.id, self.highlight, self.kind)
+
+  def create(highlight, kind, subkind, severity, criteria):
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, criteria_id=criteria.id, project_id=criteria.project.id)
+    db.session.add(error)
+    db.session.commit()
+    db.session.merge(error)
+    return error
+
+  def delete(self):
+    db.session.delete(self)
+    db.session.commit()
+
+  def save(self):
+    db.session.add(self)
+    db.session.commit()
+    db.session.merge(self)
+    return self
+
+  def create_unless_duplicate(highlight, kind, subkind, severity, criteria):
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, criteria_id=criteria.id, project_id=criteria.project.id)
+    duplicates = Error.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
+      severity=severity, criteria_id=criteria.id, project_id=criteria.project.id, false_positive=False).all()
+    if duplicates:
+      return 'duplicate'
+    else:
+      db.session.add(error)
+      db.session.commit()
+      db.session.merge(error)
+      return error
+
+  def correct_minor_issue(self):
+    criteria = self.criteria
+    CorrectError.correct_minor_issue(self)
+    return criteria
+
+class ErrorTitle(db.Model):
+  id = db.Column(db.Integer, primary_key=True)
+  highlight = db.Column(db.Text, nullable=False)
+  kind = db.Column(db.String(120), index=True,  nullable=False)
+  subkind = db.Column(db.String(120), nullable=False)
+  severity = db.Column(db.String(120), nullable=False)
+  false_positive = db.Column(db.Boolean, default=False, nullable=False)
+  title_id = db.Column(db.Integer, db.ForeignKey('title.id'), nullable=False)
+  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+
+  def __repr__(self):
+    return '<Error: %s, highlight=%s, kind=%s>' % (self.id, self.highlight, self.kind)
+
+  def create(highlight, kind, subkind, severity, title):
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, project_id=title.project.id)
+    db.session.add(error)
+    db.session.commit()
+    db.session.merge(error)
+    return error
+
+  def delete(self):
+    db.session.delete(self)
+    db.session.commit()
+
+  def save(self):
+    db.session.add(self)
+    db.session.commit()
+    db.session.merge(self)
+    return self
+
+  def create_unless_duplicate(highlight, kind, subkind, severity, title):
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, project_id=title.project.id)
+    duplicates = Error.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
+      severity=severity, title_id=title.id, project_id=title.project.id, false_positive=False).all()
+    if duplicates:
+      return 'duplicate'
+    else:
+      db.session.add(error)
+      db.session.commit()
+      db.session.merge(error)
+      return error
+
+  def correct_minor_issue(self):
+    criteria = self.criteria
+    CorrectError.correct_minor_issue(self)
+    return criteria
 
 ROLE_INDICATORS = ["^As an ", "^As a ", "^As "]
 MEANS_INDICATORS = ["I'm able to ", "I am able to ", "I want to ", "I wish to ", "I can "]
@@ -412,6 +646,28 @@ class MinimalAnalyzer:
     for index, word in matches:
       highlighted_text = highlighted_text[:index[0]] + "<span class='highlight-text severity-" +  severity + "'>" + word + "</span>" + highlighted_text[index[1]:]
     return highlighted_text
+
+
+# TitleChunker and CriteriaChunker need more work
+class CriteriaChunker:
+  def chunk_criteria(criteria):
+    CriteriaChunker.chunk_on_indicators(criteria)
+    if criteria.give is None:
+      potential_means = criteria.text
+      if criteria.when is not None:
+        potential_means = potential_means.replace(criteria.when, "", 1).strip()
+      if criteria.then is not None:
+        potential_means = potential_means.replace(criteria.then, "", 1).strip()
+      CriteriaChunker.means_tags_present(criteria, potential_means)
+    return criteria.give, criteria.when, criteria.then
+
+class TitleChunker:
+  def chunk_title(title):
+    CriteriaChunker.chunk_on_indicators(title)
+    if title.text is None:
+      potential_means = title.text
+      TitleChunker.means_tags_present(title, potential_means)
+    return title.text
 
 class StoryChunker:
   def chunk_story(story):
