@@ -19,12 +19,15 @@ def upload_file(project_unique):
   project = Project.query.get(project_unique)
   if request.method == 'POST':
     file = request.files['file']
-    print(file.filename)
     if file and allowed_file(file.filename):
       filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
       file.save(filepath)
       for story in project.stories.order_by('id').all():
         story.delete()
+      for criteria in project.criterias.order_by('id').all():
+        criteria.delete()
+      for title in project.titles.order_by('id').all():
+        title.delete()
       project.process_csv(filepath)
       return redirect(url_for('project', project_unique=project_unique))
   return render_template('upload_file.html', title='Upload File', project=project)

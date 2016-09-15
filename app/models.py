@@ -88,7 +88,7 @@ class Story(db.Model):
 class Criteria(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   text = db.Column(db.Text)
-  give = db.Column(db.Text)
+  given = db.Column(db.Text)
   when = db.Column(db.Text)
   then = db.Column(db.Text)
   project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
@@ -126,7 +126,7 @@ class Criteria(db.Model):
     return self
 
   def re_chunk(self):
-    self.give = None
+    self.given = None
     self.when = None
     self.then = None
     CriteriaChunker.chunk_criteria(self)
@@ -161,7 +161,7 @@ class Title(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   text = db.Column(db.Text)
   project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
-  # errors = db.relationship('Error', backref='story', lazy='dynamic', cascade='save-update, merge, delete')
+  errors = db.relationship('ErrorTitle', backref='title', lazy='dynamic', cascade='save-update, merge, delete')
 
   def __repr__(self):
     return '<title: %r, text=%s>' % (self.id, self.text)
@@ -176,7 +176,6 @@ class Title(db.Model):
     db.session.add(title)
     db.session.commit()
     db.session.merge(title)
-    title.chunk()
     if analyze: title.analyze()
     return title
 
@@ -190,15 +189,6 @@ class Title(db.Model):
     db.session.delete(self)
     db.session.commit()
 
-  def chunk(self):
-    TitleChunker.chunk_title(self)
-    return self
-
-  def re_chunk(self):
-    self.title = None
-    TitleChunker.chunk_title(self)
-    return self
-
   def analyze(self):
     WellFormedAnalyzer.well_formed(self)
     Analyzer.atomic(self)
@@ -209,14 +199,14 @@ class Title(db.Model):
     return self
 
   def re_analyze(self):
-    for error in Error.query.filter_by(story=self, false_positive=False).all():
+    for error in ErrorTitle.query.filter_by(title=self, false_positive=False).all():
       error.delete()
     self.analyze()
     return self
 
   def remove_duplicates_of_false_positives(self):
     for false_positive in self.errors.filter_by(false_positive=True):
-      duplicates = Error.query.filter_by(title=self, kind=false_positive.kind, subkind=false_positive.subkind, false_positive=False).all()
+      duplicates = ErrorTitle.query.filter_by(title=self, kind=false_positive.kind, subkind=false_positive.subkind, false_positive=False).all()
       if duplicates:
         for duplicate in duplicates:
           duplicate.delete()
@@ -231,6 +221,7 @@ class Project(db.Model):
   format = db.Column(db.Text, nullable=True, default="As a,I'm able to,So that")
   stories = db.relationship('Story', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
   criterias = db.relationship('Criteria', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
+  titles = db.relationship('Title', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
   errors = db.relationship('Error', backref='project', lazy='dynamic')
 
   def __repr__(self):
@@ -259,9 +250,13 @@ class Project(db.Model):
     return self
 
   def process_csv(self, path):
-    stories = pandas.read_csv(path, header=-1)
-    for story in stories[0]:
+    items = pandas.read_csv(path, header=-1)
+    for story in items[0]:
       Story.create(text=story, project_id=self.id)
+    for criteria in items[1]:
+      Criteria.create(text=criteria, project_id=self.id)
+    for title in items[2]:
+      Title.create(title, self.id)
     self.analyze()
     return None
 
@@ -364,7 +359,7 @@ class ErrorCriteria(db.Model):
 
   def create_unless_duplicate(highlight, kind, subkind, severity, criteria):
     error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, criteria_id=criteria.id, project_id=criteria.project.id)
-    duplicates = Error.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
+    duplicates = ErrorCriteria.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
       severity=severity, criteria_id=criteria.id, project_id=criteria.project.id, false_positive=False).all()
     if duplicates:
       return 'duplicate'
@@ -411,7 +406,7 @@ class ErrorTitle(db.Model):
 
   def create_unless_duplicate(highlight, kind, subkind, severity, title):
     error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, project_id=title.project.id)
-    duplicates = Error.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
+    duplicates = ErrorTitle.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
       severity=severity, title_id=title.id, project_id=title.project.id, false_positive=False).all()
     if duplicates:
       return 'duplicate'
@@ -422,10 +417,16 @@ class ErrorTitle(db.Model):
       return error
 
   def correct_minor_issue(self):
-    criteria = self.criteria
-    CorrectError.correct_minor_issue(self)
-    return criteria
+    title = self.title
+    CorrectErrorTitle.correct_minor_issue(self)
+    return title
 
+# CRITERIA
+GIVEN_INDICATORS = ["^Given that", "^Given this", "^Given the", "Given"]
+WHENS_INDICATORS = ["When the", "When"]
+THENS_INDICATORS = ["Then the", "Then"]
+
+# STORY
 ROLE_INDICATORS = ["^As an ", "^As a ", "^As "]
 MEANS_INDICATORS = ["I'm able to ", "I am able to ", "I want to ", "I wish to ", "I can "]
 ENDS_INDICATORS = ["So that ", "In order to ", "So "]
@@ -652,22 +653,81 @@ class MinimalAnalyzer:
 class CriteriaChunker:
   def chunk_criteria(criteria):
     CriteriaChunker.chunk_on_indicators(criteria)
-    if criteria.give is None:
-      potential_means = criteria.text
+    if criteria.given is None:
+      potential_whens = criteria.text
       if criteria.when is not None:
-        potential_means = potential_means.replace(criteria.when, "", 1).strip()
+        potential_means = potential_whens.replace(criteria.when, "", 1).strip()
       if criteria.then is not None:
         potential_means = potential_means.replace(criteria.then, "", 1).strip()
-      CriteriaChunker.means_tags_present(criteria, potential_means)
-    return criteria.give, criteria.when, criteria.then
+      #CriteriaChunker.means_tags_present(criteria, potential_means)
+    return criteria.given, criteria.when, criteria.then
 
-class TitleChunker:
-  def chunk_title(title):
-    CriteriaChunker.chunk_on_indicators(title)
-    if title.text is None:
-      potential_means = title.text
-      TitleChunker.means_tags_present(title, potential_means)
-    return title.text
+  def detect_indicators(criteria):
+    indicators = {'given': None, "whens": None, 'thens': None}
+    for indicator in indicators:
+      indicator_phrase = CriteriaChunker.detect_indicator_phrase(criteria.text.strip(), indicator)
+      if indicator_phrase[0]:
+        indicators[indicator.lower()] = criteria.text.lower().index(indicator_phrase[1].lower())
+    return indicators
+
+  def detect_indicator_phrase(text, indicator_type):
+    result = False
+    detected_indicators = ['']
+    for indicator_phrase in eval(indicator_type.upper() + '_INDICATORS'):
+      if re.compile('(%s)' % indicator_phrase.lower()).search(text.lower()):
+        result = True
+        detected_indicators.append(indicator_phrase.replace('^', ''))
+    return (result, max(detected_indicators, key=len))
+
+  def chunk_on_indicators(criteria):
+    indicators = CriteriaChunker.detect_indicators(criteria)
+    if indicators['whens'] is not None and indicators['thens'] is not None:
+      pass
+      # indicators = StoryChunker.correct_erroneous_indicators(criteria, indicators)  # Fix here to correct the erroneous
+    if indicators['given'] is not None and indicators['whens'] is not None:
+      criteria.given = criteria.text[indicators['given']:indicators['whens']].strip()
+      criteria.when = criteria.text[indicators['whens']:indicators['thens']].strip()
+    elif indicators['given'] is not None and indicators['whens'] is None:
+      given = CriteriaChunker.detect_indicator_phrase(criteria.text, 'given')
+      new_text = criteria.text.replace(given[1], '')
+      sentence = Analyzer.content_chunk(new_text, 'given')
+      NPs_after_given = CriteriaChunker.keep_if_NP(sentence)
+      if NPs_after_given:
+        criteria.given = criteria.text[indicators['given']:(len(given[1]) + len(NPs_after_given))].strip()
+    if indicators['thens']:
+      criteria.then = criteria.text[indicators['thens']:None].strip()
+    criteria.save()
+    return criteria
+
+  def keep_if_NP(parsed_tree):
+    return_string = []
+    for leaf in parsed_tree:
+      if type(leaf) is not tuple:
+        if leaf[0][0] == 'I':
+          break
+        elif leaf.label() == 'NP':
+          return_string.append(leaf[0][0])
+        else:
+          break
+      elif leaf == (',', ','): return_string.append(',')
+    return ' '.join(return_string)
+
+  def means_tags_present(criteria, string):
+    if not Analyzer.well_formed_content_rule(string, 'whens', ['WHENS']):
+      criteria.whens = string
+      criteria.save
+    return criteria
+
+  def correct_erroneous_indicators(criteria, indicators):
+    # means is larger than ends
+    if indicators['whens'] > indicators['thens']:
+      new_means = CriteriaChunker.detect_indicator_phrase(criteria.text[:indicators['thens']], 'whens')
+      #replication of #427 - refactor?
+      if new_means[0]:
+        indicators['thens'] = criteria.text.lower().index(new_means[1].lower())
+      else:
+        indicators['thens'] = None
+    return indicators
 
 class StoryChunker:
   def chunk_story(story):
@@ -766,3 +826,43 @@ class CorrectError:
     if story.role: story.text = story.role + ' ' + story.text
     story.save()
     return story
+
+class CorrectErrorCriteria:
+  def correct_minor_issue(error):
+    story = error.story
+    eval('CorrectError.correct_%s(error)' % error.subkind)
+    return story
+
+  def correct_no_means_comma(error):
+    story = error.story
+    story.text = story.role + ', ' + story.means
+    if story.ends: story.text = story.text + ' ' + story.ends
+    story.save()
+    return story
+
+  def correct_no_ends_comma(error):
+    story = error.story
+    story.text = story.means + ', ' + story.ends
+    if story.role: story.text = story.role + ' ' + story.text
+    story.save()
+    return story
+
+class CorrectErrorTitle:
+  def correct_minor_issue(errorTitle):
+    title = errorTitle.title
+    eval('CorrectErrorTitle.correct_%s(error)' % errorTitle.subkind)
+    return title
+
+  def correct_no_means_comma(errorTitle):
+    title = errorTitle.title
+    title.text = title.role + ', ' + title.means
+    if title.ends: title.text = title.text + ' ' + title.ends
+    title.save()
+    return title
+
+  def correct_no_ends_comma(errorTitle):
+    title = errorTitle.story
+    title.text = title.means + ', ' + title.ends
+    if title.role: title.text = title.role + ' ' + title.text
+    title.save()
+    return title
