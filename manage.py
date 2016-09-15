@@ -17,7 +17,7 @@ manager.add_command('db', MigrateCommand)
 def translate():
   subprocess.call('pybabel init -i messages.pot -d app/translations -l en && pybabel compile -d app/translations', shell=True)
 
-manager.add_command('translate', translate())
+# manager.add_command('translate', translate())
 
 if __name__ == '__main__':
   manager.run()
