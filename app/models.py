@@ -500,9 +500,6 @@ class Analyzer:
           if kind == 'role':
             for role in chunk.split(x):
               sentences_invalid.append(Analyzer.well_formed_content_rule(role, "role", ["NP"]))
-          if kind == 'event':
-            for means in chunk.split(x):
-              sentences_invalid.append(Analyzer.well_formed_content_rule(means, 'whens', ['WHENS']))
     return sentences_invalid.count(False) > 1
 
   def identical_rule(story, cascade):
