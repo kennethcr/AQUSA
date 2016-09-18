@@ -65,7 +65,7 @@ class Story(db.Model):
     Analyzer.atomic(self)
     Analyzer.unique(self, True)
     MinimalAnalyzer.minimal(self)
-    #Analyzer.uniform(self)
+    Analyzer.uniform(self)
     self.remove_duplicates_of_false_positives()
     return self
 
@@ -421,8 +421,8 @@ class ErrorTitle(db.Model):
     CorrectErrorTitle.correct_minor_issue(self)
     return title
 
-# CRITERIA
-GIVEN_INDICATORS = ["^Given that", "^Given this", "^Given the", "Given"]
+# ACCEPTANCE CRITERIA
+GIVEN_INDICATORS = ["^Given that", "^Given this", "^Given the", "^Given"]
 WHENS_INDICATORS = ["When the", "When"]
 THENS_INDICATORS = ["Then the", "Then"]
 
@@ -444,9 +444,9 @@ ERROR_KINDS = { 'well_formed_content': [
                 'unique': [
                   { 'subkind':'identical', 'rule':"Analyzer.identical_rule(story, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate user stories")' }
                 ],
-                #'uniform': [
-                 # { 'subkind':'uniform', 'rule':"Analyzer.uniform_rule(story)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % story.project.format'}
-                #],
+                'uniform': [
+                  { 'subkind':'uniform', 'rule':"Analyzer.uniform_rule(story)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % story.project.format'}
+                ],
 
               }
 CHUNK_GRAMMAR = """
@@ -500,6 +500,9 @@ class Analyzer:
           if kind == 'role':
             for role in chunk.split(x):
               sentences_invalid.append(Analyzer.well_formed_content_rule(role, "role", ["NP"]))
+          if kind == 'event':
+            for means in chunk.split(x):
+              sentences_invalid.append(Analyzer.well_formed_content_rule(means, 'whens', ['WHENS']))
     return sentences_invalid.count(False) > 1
 
   def identical_rule(story, cascade):
@@ -529,19 +532,19 @@ class Analyzer:
         if tag.upper() in x.label(): well_formed = False
     return well_formed
 
-  # def uniform_rule(story):
-  #   project_format = story.project.format.split(',')
-  #   chunks = []
-  #   for chunk in ['role', 'means', 'ends']:
-  #     chunks += [Analyzer.extract_indicator_phrases(getattr(story,chunk), chunk)]
-  #   chunks = list(filter(None, chunks))
-  #   chunks = [c.strip() for c in chunks]
-  #   result = False
-  #   if len(chunks) == 1: result = True
-  #   for x in range(0,len(chunks)):
-  #     if nltk.metrics.distance.edit_distance(chunks[x].lower(), project_format[x].lower()) > 3:
-  #       result = True
-  #   return result
+  def uniform_rule(story):
+     project_format = story.project.format.split(',')
+     chunks = []
+     for chunk in ['role', 'means', 'ends']:
+       chunks += [Analyzer.extract_indicator_phrases(getattr(story,chunk), chunk)]
+     chunks = list(filter(None, chunks))
+     chunks = [c.strip() for c in chunks]
+     result = False
+     if len(chunks) == 1: result = True
+     for x in range(0,len(chunks)):
+       if nltk.metrics.distance.edit_distance(chunks[x].lower(), project_format[x].lower()) > 3:
+         result = True
+     return result
 
   def well_formed_content_highlight(story_part, kind):
     return str(Analyzer.content_chunk(story_part, kind))
