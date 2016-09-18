@@ -23,11 +23,11 @@ def upload_file(project_unique):
       filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
       file.save(filepath)
       for story in project.stories.order_by('id').all():
+        for criteria in story.criterias.order_by('id').all():
+          criteria.delete()
+        for title in story.titles.order_by('id').all():
+          title.delete()
         story.delete()
-      for criteria in project.criterias.order_by('id').all():
-        criteria.delete()
-      for title in project.titles.order_by('id').all():
-        title.delete()
       project.process_csv(filepath)
       return redirect(url_for('project', project_unique=project_unique))
   return render_template('upload_file.html', title='Upload File', project=project)
