@@ -20,6 +20,8 @@ class Story(db.Model):
   means = db.Column(db.Text)
   ends = db.Column(db.Text)
   project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+  criterias = db.relationship('Criteria', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
+  titles = db.relationship('Title', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
   errors = db.relationship('Error', backref='story', lazy='dynamic', cascade='save-update, merge, delete')
 
   def __repr__(self):
@@ -91,7 +93,7 @@ class Criteria(db.Model):
   given = db.Column(db.Text)
   when = db.Column(db.Text)
   then = db.Column(db.Text)
-  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+  story_id = db.Column(db.Integer, db.ForeignKey('story.id'), nullable=False)
   # errors = db.relationship('Error', backref='story', lazy='dynamic', cascade='save-update, merge, delete')
 
   def __repr__(self):
@@ -102,8 +104,8 @@ class Criteria(db.Model):
     del class_dict['_sa_instance_state']
     return class_dict
 
-  def create(text, project_id, analyze=False):
-    criteria = Criteria(text=text, project_id=project_id)
+  def create(text, story_id, analyze=False):
+    criteria = Criteria(text=text, story_id=story_id)
     db.session.add(criteria)
     db.session.commit()
     db.session.merge(criteria)
@@ -160,7 +162,7 @@ class Criteria(db.Model):
 class Title(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   text = db.Column(db.Text)
-  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+  story_id = db.Column(db.Integer, db.ForeignKey('story.id'), nullable=False)
   errors = db.relationship('ErrorTitle', backref='title', lazy='dynamic', cascade='save-update, merge, delete')
 
   def __repr__(self):
@@ -171,8 +173,8 @@ class Title(db.Model):
     del class_dict['_sa_instance_state']
     return class_dict
 
-  def create(text, project_id, analyze=False):
-    title = Title(text=text, project_id=project_id)
+  def create(text, story_id, analyze=False):
+    title = Title(text=text, story_id=story_id)
     db.session.add(title)
     db.session.commit()
     db.session.merge(title)
@@ -220,8 +222,6 @@ class Project(db.Model):
   name = db.Column(db.String(120), index=True, nullable=False)
   format = db.Column(db.Text, nullable=True, default="As a,I'm able to,So that")
   stories = db.relationship('Story', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
-  criterias = db.relationship('Criteria', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
-  titles = db.relationship('Title', backref='project', lazy='dynamic', cascade='save-update, merge, delete')
   errors = db.relationship('Error', backref='project', lazy='dynamic')
 
   def __repr__(self):
@@ -251,14 +251,35 @@ class Project(db.Model):
 
   def process_csv(self, path):
     items = pandas.read_csv(path, header=-1)
+
+    count = 0
     for story in items[0]:
-      Story.create(text=story, project_id=self.id)
-    for criteria in items[1]:
-      Criteria.create(text=criteria, project_id=self.id)
-    for title in items[2]:
-      Title.create(title, self.id)
+      story = Story.create(text=story, project_id=self.id)
+      self.__build_criteria(items=items, story_id=story.id, index=count)
+      self.__build_titles(items=items, story_id=story.id, index=count)
+      count += 1
+
     self.analyze()
     return None
+
+  @staticmethod
+  def __build_titles(items, story_id, index):
+    try:
+      Title.create(text=items[2][index], story_id=story_id)
+    except:
+      pass
+
+  @staticmethod
+  def __build_criteria(items, story_id, index):
+    try:
+      split_word = 'Given '
+      criteria_list = str(items[1][index]).lower().split(split_word.lower())
+      for item in criteria_list:
+        if item:
+          text = split_word + item
+          Criteria.create(text=text, story_id=story_id)
+    except:
+      pass
 
   def get_common_format(self):
     most_common_format = []
