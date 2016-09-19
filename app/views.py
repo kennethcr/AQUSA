@@ -2,7 +2,7 @@ from flask import jsonify, abort, session, render_template, request, flash, redi
 from werkzeug import secure_filename
 import os
 from app import app, babel
-from .models import Story, Project, Error
+from .models import Story, Project, Error, Criteria
 from config import LANGUAGES
 
 @app.route('/')
