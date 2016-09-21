@@ -135,11 +135,11 @@ class Criteria(db.Model):
     return self
 
   def analyze(self):
-    WellFormedAnalyzer.well_formed(self)
-    Analyzer.atomic(self)
-    Analyzer.unique(self, True)
-    MinimalAnalyzer.minimal(self)
-    #Analyzer.uniform(self)
+    WellFormedAnalyzerCriteria.well_formed(self)
+    AnalyzerCriteria.atomic(self)
+    AnalyzerCriteria.unique(self, True)
+    MinimalAnalyzerCriteria.minimal(self)
+    AnalyzerCriteria.uniform(self)
     self.remove_duplicates_of_false_positives()
     return self
 
@@ -470,6 +470,24 @@ ERROR_KINDS = { 'well_formed_content': [
                 ],
 
               }
+
+ERROR_KINDS_CRITERIA = { 'well_formed_content': [
+                  { 'subkind': 'means', 'rule': 'Analyzer.well_formed_content_rule(story.means, "means", ["means"])', 'severity':'medium', 'highlight':'str("Make sure the means includes a verb and a noun. Our analysis shows the means currently includes: ") + Analyzer.well_formed_content_highlight(story.means, "means")'},
+                  { 'subkind': 'role', 'rule': 'Analyzer.well_formed_content_rule(story.role, "role", ["NP"])', 'severity':'medium', 'highlight':'str("Make sure the role includes a person noun. Our analysis shows the role currently includes: ") + Analyzer.well_formed_content_highlight(story.role, "role")'},
+                ],
+
+                'atomic': [
+                  { 'subkind':'conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"}
+                ],
+                'unique': [
+                  { 'subkind':'identical', 'rule':"Analyzer.identical_rule(story, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate user stories")' }
+                ],
+                'uniform': [
+                  { 'subkind':'uniform', 'rule':"Analyzer.uniform_rule(story)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % story.project.format'}
+                ],
+
+              }
+
 CHUNK_GRAMMAR = """
       NP: {<DT|JJ|NN.*>}
       NNP: {<NNP.*>}
@@ -477,6 +495,15 @@ CHUNK_GRAMMAR = """
       VP: {<VB.*><NP>*}
       MEANS: {<AP>?<VP>}
       ENDS: {<AP>?<VP>}
+    """
+CHUNK_GRAMMAR_CRITERIA = """
+      NP: {<DT|JJ|NN.*>}
+      NNP: {<NNP.*>}
+      AP: {<RB.*|JJ.*>}
+      VP: {<VB.*><NP>*}
+      GIVEN: {<AP>?<VP>}
+      WHENS: {<AP>?<VP>}
+      THENS: {<AP>?<VP>}
     """
 
 class Analyzer:
@@ -521,9 +548,6 @@ class Analyzer:
           if kind == 'role':
             for role in chunk.split(x):
               sentences_invalid.append(Analyzer.well_formed_content_rule(role, "role", ["NP"]))
-          if kind == 'event':
-            for means in chunk.split(x):
-              sentences_invalid.append(Analyzer.well_formed_content_rule(means, 'whens', ['WHENS']))
     return sentences_invalid.count(False) > 1
 
   def identical_rule(story, cascade):
@@ -593,6 +617,116 @@ class Analyzer:
         pos_text = [x for x in pos_text if x[0] not in indicator_words]
     return pos_text
 
+class AnalyzerCriteria:
+  def atomic(criteria):
+    #Atomicity for AC is only analyzed in the "whens", first for conjunctions and then for different actions amongst scenarios 
+    for chunk in ['"whens"']:
+      AnalyzerCriteria.generate_errors('atomic', criteria, chunk=chunk)
+    return criteria
+
+  def unique(criteria, cascade):
+    AnalyzerCriteria.generate_errors('unique', criteria, cascade=cascade)
+    return criteria
+
+  def uniform(criteria):
+    AnalyzerCriteria.generate_errors('uniform', criteria)
+    return criteria
+      
+  def detect_indicator_phrases(text):
+    indicator_phrases = {'given': False, 'whens': False, 'thens': False}
+    for key in indicator_phrases:
+      for indicator_phrase in eval(key.upper() + '_INDICATORS'):
+        if indicator_phrase.lower() in text.lower(): indicator_phrases[key] = True
+    return indicator_phrases
+
+  def generate_errors(kind, criteria, **kwargs):
+    for kwarg in kwargs:
+      exec(kwarg+'='+ str(kwargs[kwarg]))
+    for error_type in ERROR_KINDS[kind]:
+      if eval(error_type['rule']):
+        Error.create_unless_duplicate(eval(error_type['highlight']), kind, error_type['subkind'], error_type['severity'], criteria)
+
+  def inject_text(text, severity='medium'):
+    return "<span class='highlight-text severity-" + severity + "'>%s</span>" % text
+
+  def atomic_rule(chunk, kind):
+    sentences_invalid = []
+    if chunk: 
+      for x in CONJUNCTIONS:
+        if x in chunk.lower():
+          if kind == 'whens':
+            for whens in chunk.split(x):
+              sentences_invalid.append(AnalyzerCriteria.well_formed_content_rule(whens, 'whens', ['whens']))
+    #If several Scenarios add logic to compare "whens"
+    #Maybe use identical_rule??
+    return sentences_invalid.count(False) > 1
+
+  def identical_rule(criteria, cascade):
+    identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.project_id == int(criteria.project_id))).all()
+    identical_stories.remove(criteria)
+    if cascade:
+      for criteria in identical_stories:
+        for error in criteria.errors.filter(Error.kind=='unique').all(): error.delete()
+        AnalyzerCriteria.unique(criteria, False)
+    return (True if identical_stories else False)
+
+  def highlight_text(criteria, word_array, severity):
+    highlighted_text = criteria.text
+    indices = []
+    for word in word_array:
+      if word in criteria.text.lower(): indices += [ [criteria.text.index(word), word] ]
+    indices.sort(reverse=True)
+    for index, word in indices:
+      highlighted_text = highlighted_text[:index] + "<span class='highlight-text severity-" + severity + "'>" + word + "</span>" + highlighted_text[index+len(word):]
+    return highlighted_text
+
+  def well_formed_content_rule(criteria_part, kind, tags):
+    result = AnalyzerCriteria.content_chunk(criteria_part, kind)
+    well_formed = True
+    for tag in tags:
+      for x in result.subtrees():
+        if tag.upper() in x.label(): well_formed = False
+    return well_formed
+
+  def uniform_rule(criteria):
+     project_format = criteria.project.format.split(',')
+     chunks = []
+     for chunk in ['given', 'whens', 'thens']:
+       chunks += [AnalyzerCriteria.extract_indicator_phrases(getattr(criteria,chunk), chunk)]
+     chunks = list(filter(None, chunks))
+     chunks = [c.strip() for c in chunks]
+     result = False
+     if len(chunks) == 1: result = True
+     for x in range(0,len(chunks)):
+       if nltk.metrics.distance.edit_distance(chunks[x].lower(), project_format[x].lower()) > 3:
+         result = True
+     return result
+
+  def well_formed_content_highlight(criteria_part, kind):
+    return str(AnalyzerCriteria.content_chunk(criteria_part, kind))
+
+  def content_chunk(chunk, kind):
+    sentence = AQUSATagger.parse(chunk)[0]
+    sentence = AnalyzerCriteria.strip_indicators_pos(chunk, sentence, kind)
+    cp = nltk.RegexpParser(CHUNK_GRAMMAR_CRITERIA)
+    result = cp.parse(sentence)
+    return result
+
+  def extract_indicator_phrases(text, indicator_type):
+    if text:
+      indicator_phrase = []
+      for indicator in eval(indicator_type.upper() + '_INDICATORS'):
+        if re.compile('(%s)' % indicator.lower()).search(text.lower()): indicator_phrase += [indicator.replace('^', '')]
+      return max(indicator_phrase, key=len) if indicator_phrase else None
+    else:
+      return text
+
+  def strip_indicators_pos(text, pos_text, indicator_type):
+    for indicator in eval(indicator_type.upper() + '_INDICATORS'):
+      if indicator.lower().strip() in text.lower():
+        indicator_words = nltk.word_tokenize(indicator)
+        pos_text = [x for x in pos_text if x[0] not in indicator_words]
+    return pos_text
 
 class WellFormedAnalyzer:
   def well_formed(story):
@@ -625,6 +759,38 @@ class WellFormedAnalyzer:
         highlight = story.means + Analyzer.inject_text(',') + ' ' + story.ends
         Error.create_unless_duplicate(highlight, 'well_formed', 'no_ends_comma', 'minor', story )
     return story
+  
+class WellFormedAnalyzerCriteria:
+  def well_formed(criteria):
+    WellFormedAnalyzerCriteria.whens(criteria)
+    WellFormedAnalyzerCriteria.given(criteria)
+    WellFormedAnalyzerCriteria.whens_comma(criteria)
+    WellFormedAnalyzerCriteria.thens_comma(criteria)
+    return criteria
+
+  def whens(criteria):
+    if not criteria.whens:
+      Error.create_unless_duplicate('Add a when', 'well_formed', 'no_whens', 'high', criteria )
+    return criteria
+
+  def given(criteria):
+    if not criteria.given:
+      Error.create_unless_duplicate('Add a given', 'well_formed', 'no_given', 'high', criteria )
+    return criteria
+
+  def whens_comma(criteria):
+    if criteria.given is not None and criteria.whens is not None:
+      if criteria.given.count(',') == 0:
+        highlight = criteria.given + AnalyzerCriteria.inject_text(',') + ' ' + criteria.whens
+        Error.create_unless_duplicate(highlight, 'well_formed', 'no_whens_comma', 'minor', criteria )
+    return criteria
+
+  def thens_comma(criteria):
+    if criteria.whens is not None and criteria.thens is not None:
+      if criteria.whens.count(',') == 0:
+        highlight = criteria.whens + AnalyzerCriteria.inject_text(',') + ' ' + criteria.thens
+        Error.create_unless_duplicate(highlight, 'well_formed', 'no_thens_comma', 'minor', criteria )
+    return criteria  
 
 class MinimalAnalyzer:
   def minimal(story):
@@ -672,6 +838,51 @@ class MinimalAnalyzer:
       highlighted_text = highlighted_text[:index[0]] + "<span class='highlight-text severity-" +  severity + "'>" + word + "</span>" + highlighted_text[index[1]:]
     return highlighted_text
 
+class MinimalAnalyzerCriteria:
+  def minimal(criteria):
+    MinimalAnalyzerCriteria.punctuation(criteria)
+    MinimalAnalyzerCriteria.brackets(criteria)
+    return criteria
+
+  def punctuation(criteria):
+    if any(re.compile('(\%s .)' % x).search(criteria.text.lower()) for x in PUNCTUATION):
+      highlight = MinimalAnalyzerCriteria.punctuation_highlight(criteria, 'high')
+      Error.create_unless_duplicate(highlight, 'minimal', 'punctuation', 'high', criteria )
+    return criteria
+
+  def punctuation_highlight(criteria, severity):
+    highlighted_text = criteria.text
+    indices = []
+    for word in PUNCTUATION:
+      if re.search('(\%s .)' % word, criteria.text.lower()): indices += [ [criteria.text.index(word), word] ]
+    first_punct = min(indices)
+    highlighted_text = highlighted_text[:first_punct[0]] + "<span class='highlight-text severity-" + severity + "'>" + highlighted_text[first_punct[0]:] + "</span>"
+    return highlighted_text
+
+  def brackets(criteria):
+    if any(re.compile('(\%s' % x[0] + '.*\%s(\W|\Z))' % x[1]).search(criteria.text.lower()) for x in BRACKETS):
+      highlight = MinimalAnalyzerCriteria.brackets_highlight(criteria, 'high')
+      Error.create_unless_duplicate(highlight, 'minimal', 'brackets', 'high', criteria )
+    return criteria.errors.all()
+
+  def brackets_highlight(criteria, severity):
+    highlighted_text = criteria.text
+    matches = []
+    for x in BRACKETS:
+      split_string = '[^\%s' % x[1] + ']+\%s' % x[1]
+      strings = re.findall(split_string, criteria.text)
+      match_string = '(\%s' % x[0] + '.*\%s(\W|\Z))' % x[1]
+      string_length = 0
+      for string in strings:
+        result = re.compile(match_string).search(string.lower())
+        if result:
+          span = tuple(map(operator.add, result.span(), (string_length, string_length)))
+          matches += [ [span, result.group()] ]
+        string_length += len(string)
+    matches.sort(reverse=True)
+    for index, word in matches:
+      highlighted_text = highlighted_text[:index[0]] + "<span class='highlight-text severity-" +  severity + "'>" + word + "</span>" + highlighted_text[index[1]:]
+    return highlighted_text
 
 # TitleChunker and CriteriaChunker need more work
 class CriteriaChunker:
