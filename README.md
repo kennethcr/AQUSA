@@ -43,3 +43,16 @@ Code Improvements
 
 ### External links
 - http://stackoverflow.com/questions/4867197/failed-loading-english-pickle-with-nltk-data-load
+
+### SQLs
+- To check all the titles and stories
+SELECT p.id,s.id,s.text,t.story_id, t.text
+FROM 	project p
+	INNER JOIN story s ON s.project_id = p.id 
+	INNER JOIN title t ON s.id = t.story_id
+
+- To check all the criteria and stories
+SELECT p.id,s.id,s.text,c.story_id,c.text
+FROM 	project p
+	INNER JOIN story s ON s.project_id = p.id 
+	INNER JOIN criteria c ON s.id = c.story_id 
