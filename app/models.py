@@ -89,12 +89,13 @@ class Story(db.Model):
 
 class Criteria(db.Model):
   id = db.Column(db.Integer, primary_key=True)
+  format = db.Column(db.Text, nullable=True, default="Given,When,Then")
   text = db.Column(db.Text)
   given = db.Column(db.Text)
   when = db.Column(db.Text)
   then = db.Column(db.Text)
   story_id = db.Column(db.Integer, db.ForeignKey('story.id'), nullable=False)
-  # errors = db.relationship('Error', backref='story', lazy='dynamic', cascade='save-update, merge, delete')
+  errors = db.relationship('ErrorCriteria', backref='story', lazy='dynamic', cascade='save-update, merge, delete')
 
   def __repr__(self):
     return '<criteria: %r, text=%s>' % (self.id, self.text)
@@ -144,7 +145,7 @@ class Criteria(db.Model):
     return self
 
   def re_analyze(self):
-    for error in Error.query.filter_by(story=self, false_positive=False).all():
+    for error in ErrorCriteria.query.filter_by(story=self, false_positive=False).all():
       error.delete()
     self.analyze()
     return self
@@ -297,8 +298,17 @@ class Project(db.Model):
   def analyze(self):
     self.get_common_format()
     for story in self.stories.all():
+
+      for criteria in story.criterias.all():
+        criteria.re_chunk()
+        criteria.re_analyze()
+
+      # for title in story.titles.all():
+      #   title.re_analyze()
+
       story.re_chunk()
       story.re_analyze()
+
     return self
 
 class Error(db.Model):
@@ -356,13 +366,13 @@ class ErrorCriteria(db.Model):
   severity = db.Column(db.String(120), nullable=False)
   false_positive = db.Column(db.Boolean, default=False, nullable=False)
   criteria_id = db.Column(db.Integer, db.ForeignKey('criteria.id'), nullable=False)
-  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+  story_id = db.Column(db.Integer, db.ForeignKey('story.id'), nullable=False)
 
   def __repr__(self):
     return '<Error: %s, highlight=%s, kind=%s>' % (self.id, self.highlight, self.kind)
 
   def create(highlight, kind, subkind, severity, criteria):
-    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, criteria_id=criteria.id, project_id=criteria.project.id)
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, criteria_id=criteria.id, story_id=criteria.story_id)
     db.session.add(error)
     db.session.commit()
     db.session.merge(error)
@@ -379,9 +389,9 @@ class ErrorCriteria(db.Model):
     return self
 
   def create_unless_duplicate(highlight, kind, subkind, severity, criteria):
-    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, criteria_id=criteria.id, project_id=criteria.project.id)
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, criteria_id=criteria.id, story_id=criteria.story_id)
     duplicates = ErrorCriteria.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
-      severity=severity, criteria_id=criteria.id, project_id=criteria.project.id, false_positive=False).all()
+      severity=severity, criteria_id=criteria.id, story_id=criteria.story_id, false_positive=False).all()
     if duplicates:
       return 'duplicate'
     else:
@@ -403,13 +413,13 @@ class ErrorTitle(db.Model):
   severity = db.Column(db.String(120), nullable=False)
   false_positive = db.Column(db.Boolean, default=False, nullable=False)
   title_id = db.Column(db.Integer, db.ForeignKey('title.id'), nullable=False)
-  project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+  story_id = db.Column(db.Integer, db.ForeignKey('story.id'), nullable=False)
 
   def __repr__(self):
     return '<Error: %s, highlight=%s, kind=%s>' % (self.id, self.highlight, self.kind)
 
   def create(highlight, kind, subkind, severity, title):
-    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, project_id=title.project.id)
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, story_id=title.story_id)
     db.session.add(error)
     db.session.commit()
     db.session.merge(error)
@@ -426,9 +436,9 @@ class ErrorTitle(db.Model):
     return self
 
   def create_unless_duplicate(highlight, kind, subkind, severity, title):
-    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, project_id=title.project.id)
+    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, story_id=title.story_id)
     duplicates = ErrorTitle.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
-      severity=severity, title_id=title.id, project_id=title.project.id, false_positive=False).all()
+      severity=severity, title_id=title.id, story_id=title.story_id, false_positive=False).all()
     if duplicates:
       return 'duplicate'
     else:
@@ -444,8 +454,8 @@ class ErrorTitle(db.Model):
 
 # ACCEPTANCE CRITERIA
 GIVEN_INDICATORS = ["^Given that", "^Given this", "^Given the", "^Given"]
-WHENS_INDICATORS = ["When the", "When"]
-THENS_INDICATORS = ["Then the", "Then"]
+WHEN_INDICATORS = ["When the", "When"]
+THEN_INDICATORS = ["Then the", "Then"]
 
 # STORY
 ROLE_INDICATORS = ["^As an ", "^As a ", "^As "]
@@ -472,18 +482,19 @@ ERROR_KINDS = { 'well_formed_content': [
               }
 
 ERROR_KINDS_CRITERIA = { 'well_formed_content': [
-                  { 'subkind': 'means', 'rule': 'Analyzer.well_formed_content_rule(story.means, "means", ["means"])', 'severity':'medium', 'highlight':'str("Make sure the means includes a verb and a noun. Our analysis shows the means currently includes: ") + Analyzer.well_formed_content_highlight(story.means, "means")'},
-                  { 'subkind': 'role', 'rule': 'Analyzer.well_formed_content_rule(story.role, "role", ["NP"])', 'severity':'medium', 'highlight':'str("Make sure the role includes a person noun. Our analysis shows the role currently includes: ") + Analyzer.well_formed_content_highlight(story.role, "role")'},
+                  { 'subkind': 'when', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.when, "when", ["when"])', 'severity':'medium', 'highlight':'str("Make sure the means includes a verb and a noun. Our analysis shows the means currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.when, "when")'},
+                  { 'subkind': 'given', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "role", ["NP"])', 'severity':'medium', 'highlight':'str("Make sure the role includes a person noun. Our analysis shows the role currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "given")'},
                 ],
 
                 'atomic': [
-                  { 'subkind':'conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"}
+                  { 'subkind':'conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  { 'subkind':'one_feature', 'rule':"AnalyzerCriteria.atomic_one_feature_rule(criteria)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"}
                 ],
                 'unique': [
-                  { 'subkind':'identical', 'rule':"Analyzer.identical_rule(story, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate user stories")' }
+                  { 'subkind':'identical', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate user stories")' }
                 ],
                 'uniform': [
-                  { 'subkind':'uniform', 'rule':"Analyzer.uniform_rule(story)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % story.project.format'}
+                  { 'subkind':'uniform', 'rule':"AnalyzerCriteria.uniform_rule(criteria)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % criteria.format'}
                 ],
 
               }
@@ -502,8 +513,8 @@ CHUNK_GRAMMAR_CRITERIA = """
       AP: {<RB.*|JJ.*>}
       VP: {<VB.*><NP>*}
       GIVEN: {<AP>?<VP>}
-      WHENS: {<AP>?<VP>}
-      THENS: {<AP>?<VP>}
+      WHEN: {<AP>?<VP>}
+      THEN: {<AP>?<VP>}
     """
 
 class Analyzer:
@@ -519,7 +530,7 @@ class Analyzer:
   def uniform(story):
     Analyzer.generate_errors('uniform', story)
     return story
-      
+
   def detect_indicator_phrases(text):
     indicator_phrases = {'role': False, 'means': False, 'ends': False}
     for key in indicator_phrases:
@@ -539,7 +550,7 @@ class Analyzer:
 
   def atomic_rule(chunk, kind):
     sentences_invalid = []
-    if chunk: 
+    if chunk:
       for x in CONJUNCTIONS:
         if x in chunk.lower():
           if kind == 'means':
@@ -619,8 +630,8 @@ class Analyzer:
 
 class AnalyzerCriteria:
   def atomic(criteria):
-    #Atomicity for AC is only analyzed in the "whens", first for conjunctions and then for different actions amongst scenarios 
-    for chunk in ['"whens"']:
+    #Atomicity for AC is only analyzed in the "when", first for conjunctions and then for different actions amongst scenarios
+    for chunk in ['"when"']:
       AnalyzerCriteria.generate_errors('atomic', criteria, chunk=chunk)
     return criteria
 
@@ -631,9 +642,9 @@ class AnalyzerCriteria:
   def uniform(criteria):
     AnalyzerCriteria.generate_errors('uniform', criteria)
     return criteria
-      
+
   def detect_indicator_phrases(text):
-    indicator_phrases = {'given': False, 'whens': False, 'thens': False}
+    indicator_phrases = {'given': False, 'when': False, 'then': False}
     for key in indicator_phrases:
       for indicator_phrase in eval(key.upper() + '_INDICATORS'):
         if indicator_phrase.lower() in text.lower(): indicator_phrases[key] = True
@@ -642,31 +653,41 @@ class AnalyzerCriteria:
   def generate_errors(kind, criteria, **kwargs):
     for kwarg in kwargs:
       exec(kwarg+'='+ str(kwargs[kwarg]))
-    for error_type in ERROR_KINDS[kind]:
+    for error_type in ERROR_KINDS_CRITERIA[kind]:
       if eval(error_type['rule']):
-        Error.create_unless_duplicate(eval(error_type['highlight']), kind, error_type['subkind'], error_type['severity'], criteria)
+        ErrorCriteria.create_unless_duplicate(eval(error_type['highlight']), kind, error_type['subkind'], error_type['severity'], criteria)
 
   def inject_text(text, severity='medium'):
     return "<span class='highlight-text severity-" + severity + "'>%s</span>" % text
 
   def atomic_rule(chunk, kind):
     sentences_invalid = []
-    if chunk: 
+    if chunk:
       for x in CONJUNCTIONS:
         if x in chunk.lower():
-          if kind == 'whens':
-            for whens in chunk.split(x):
-              sentences_invalid.append(AnalyzerCriteria.well_formed_content_rule(whens, 'whens', ['whens']))
-    #If several Scenarios add logic to compare "whens"
+          if kind == 'when':
+            for when in chunk.split(x):
+              sentences_invalid.append(False)
+    #If several Scenarios add logic to compare "when"
     #Maybe use identical_rule??
     return sentences_invalid.count(False) > 1
 
+
+  def atomic_one_feature_rule(criteria):
+    stories = Criteria.query.filter_by(story_id=criteria.story_id).all()
+    repeated_when = []
+    if len(stories) > 1:
+      for x in stories:
+        repeated_when.append(x.when == criteria.when)
+
+    return repeated_when.count(True) != len(stories)
+
   def identical_rule(criteria, cascade):
-    identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.project_id == int(criteria.project_id))).all()
+    identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
     identical_stories.remove(criteria)
     if cascade:
       for criteria in identical_stories:
-        for error in criteria.errors.filter(Error.kind=='unique').all(): error.delete()
+        for error in criteria.errors.filter(ErrorCriteria.kind=='unique').all(): error.delete()
         AnalyzerCriteria.unique(criteria, False)
     return (True if identical_stories else False)
 
@@ -688,10 +709,12 @@ class AnalyzerCriteria:
         if tag.upper() in x.label(): well_formed = False
     return well_formed
 
+
+
   def uniform_rule(criteria):
-     project_format = criteria.project.format.split(',')
+     project_format = criteria.format.split(',')
      chunks = []
-     for chunk in ['given', 'whens', 'thens']:
+     for chunk in ['given', 'when', 'then']:
        chunks += [AnalyzerCriteria.extract_indicator_phrases(getattr(criteria,chunk), chunk)]
      chunks = list(filter(None, chunks))
      chunks = [c.strip() for c in chunks]
@@ -759,38 +782,38 @@ class WellFormedAnalyzer:
         highlight = story.means + Analyzer.inject_text(',') + ' ' + story.ends
         Error.create_unless_duplicate(highlight, 'well_formed', 'no_ends_comma', 'minor', story )
     return story
-  
+
 class WellFormedAnalyzerCriteria:
   def well_formed(criteria):
-    WellFormedAnalyzerCriteria.whens(criteria)
+    WellFormedAnalyzerCriteria.when(criteria)
     WellFormedAnalyzerCriteria.given(criteria)
-    WellFormedAnalyzerCriteria.whens_comma(criteria)
-    WellFormedAnalyzerCriteria.thens_comma(criteria)
+    WellFormedAnalyzerCriteria.when_comma(criteria)
+    WellFormedAnalyzerCriteria.then_comma(criteria)
     return criteria
 
-  def whens(criteria):
-    if not criteria.whens:
-      Error.create_unless_duplicate('Add a when', 'well_formed', 'no_whens', 'high', criteria )
+  def when(criteria):
+    if not criteria.when:
+      ErrorCriteria.create_unless_duplicate('Add a when', 'well_formed', 'no_when', 'high', criteria )
     return criteria
 
   def given(criteria):
     if not criteria.given:
-      Error.create_unless_duplicate('Add a given', 'well_formed', 'no_given', 'high', criteria )
+      ErrorCriteria.create_unless_duplicate('Add a given', 'well_formed', 'no_given', 'high', criteria )
     return criteria
 
-  def whens_comma(criteria):
-    if criteria.given is not None and criteria.whens is not None:
+  def when_comma(criteria):
+    if criteria.given is not None and criteria.when is not None:
       if criteria.given.count(',') == 0:
-        highlight = criteria.given + AnalyzerCriteria.inject_text(',') + ' ' + criteria.whens
-        Error.create_unless_duplicate(highlight, 'well_formed', 'no_whens_comma', 'minor', criteria )
+        highlight = criteria.given + AnalyzerCriteria.inject_text(',') + ' ' + criteria.when
+        ErrorCriteria.create_unless_duplicate(highlight, 'well_formed', 'no_when_comma', 'minor', criteria )
     return criteria
 
-  def thens_comma(criteria):
-    if criteria.whens is not None and criteria.thens is not None:
-      if criteria.whens.count(',') == 0:
-        highlight = criteria.whens + AnalyzerCriteria.inject_text(',') + ' ' + criteria.thens
-        Error.create_unless_duplicate(highlight, 'well_formed', 'no_thens_comma', 'minor', criteria )
-    return criteria  
+  def then_comma(criteria):
+    if criteria.when is not None and criteria.then is not None:
+      if criteria.when.count(',') == 0:
+        highlight = criteria.when + AnalyzerCriteria.inject_text(',') + ' ' + criteria.then
+        ErrorCriteria.create_unless_duplicate(highlight, 'well_formed', 'no_then_comma', 'minor', criteria )
+    return criteria
 
 class MinimalAnalyzer:
   def minimal(story):
@@ -847,7 +870,7 @@ class MinimalAnalyzerCriteria:
   def punctuation(criteria):
     if any(re.compile('(\%s .)' % x).search(criteria.text.lower()) for x in PUNCTUATION):
       highlight = MinimalAnalyzerCriteria.punctuation_highlight(criteria, 'high')
-      Error.create_unless_duplicate(highlight, 'minimal', 'punctuation', 'high', criteria )
+      ErrorCriteria.create_unless_duplicate(highlight, 'minimal', 'punctuation', 'high', criteria )
     return criteria
 
   def punctuation_highlight(criteria, severity):
@@ -862,7 +885,7 @@ class MinimalAnalyzerCriteria:
   def brackets(criteria):
     if any(re.compile('(\%s' % x[0] + '.*\%s(\W|\Z))' % x[1]).search(criteria.text.lower()) for x in BRACKETS):
       highlight = MinimalAnalyzerCriteria.brackets_highlight(criteria, 'high')
-      Error.create_unless_duplicate(highlight, 'minimal', 'brackets', 'high', criteria )
+      ErrorCriteria.create_unless_duplicate(highlight, 'minimal', 'brackets', 'high', criteria )
     return criteria.errors.all()
 
   def brackets_highlight(criteria, severity):
@@ -889,16 +912,16 @@ class CriteriaChunker:
   def chunk_criteria(criteria):
     CriteriaChunker.chunk_on_indicators(criteria)
     if criteria.given is None:
-      potential_whens = criteria.text
+      potential_when = criteria.text
       if criteria.when is not None:
-        potential_means = potential_whens.replace(criteria.when, "", 1).strip()
+        potential_when = potential_when.replace(criteria.when, "", 1).strip()
       if criteria.then is not None:
-        potential_means = potential_means.replace(criteria.then, "", 1).strip()
-      #CriteriaChunker.means_tags_present(criteria, potential_means)
+        potential_when = potential_when.replace(criteria.then, "", 1).strip()
+      CriteriaChunker.means_tags_present(criteria, potential_when)
     return criteria.given, criteria.when, criteria.then
 
   def detect_indicators(criteria):
-    indicators = {'given': None, "whens": None, 'thens': None}
+    indicators = {'given': None, "when": None, 'then': None}
     for indicator in indicators:
       indicator_phrase = CriteriaChunker.detect_indicator_phrase(criteria.text.strip(), indicator)
       if indicator_phrase[0]:
@@ -916,21 +939,20 @@ class CriteriaChunker:
 
   def chunk_on_indicators(criteria):
     indicators = CriteriaChunker.detect_indicators(criteria)
-    if indicators['whens'] is not None and indicators['thens'] is not None:
-      pass
-      # indicators = StoryChunker.correct_erroneous_indicators(criteria, indicators)  # Fix here to correct the erroneous
-    if indicators['given'] is not None and indicators['whens'] is not None:
-      criteria.given = criteria.text[indicators['given']:indicators['whens']].strip()
-      criteria.when = criteria.text[indicators['whens']:indicators['thens']].strip()
-    elif indicators['given'] is not None and indicators['whens'] is None:
+    if indicators['when'] is not None and indicators['then'] is not None:
+      indicators = CriteriaChunker.correct_erroneous_indicators(criteria, indicators)  # Fix here to correct the erroneous
+    if indicators['given'] is not None and indicators['when'] is not None:
+      criteria.given = criteria.text[indicators['given']:indicators['when']].strip()
+      criteria.when = criteria.text[indicators['when']:indicators['then']].strip()
+    elif indicators['given'] is not None and indicators['when'] is None:
       given = CriteriaChunker.detect_indicator_phrase(criteria.text, 'given')
       new_text = criteria.text.replace(given[1], '')
-      sentence = Analyzer.content_chunk(new_text, 'given')
+      sentence = AnalyzerCriteria.content_chunk(new_text, 'given')
       NPs_after_given = CriteriaChunker.keep_if_NP(sentence)
       if NPs_after_given:
         criteria.given = criteria.text[indicators['given']:(len(given[1]) + len(NPs_after_given))].strip()
-    if indicators['thens']:
-      criteria.then = criteria.text[indicators['thens']:None].strip()
+    if indicators['then']:
+      criteria.then = criteria.text[indicators['then']:None].strip()
     criteria.save()
     return criteria
 
@@ -948,20 +970,20 @@ class CriteriaChunker:
     return ' '.join(return_string)
 
   def means_tags_present(criteria, string):
-    if not Analyzer.well_formed_content_rule(string, 'whens', ['WHENS']):
-      criteria.whens = string
+    if not AnalyzerCriteria.well_formed_content_rule(string, 'when', ['WHEN']):
+      criteria.when = string
       criteria.save
     return criteria
 
   def correct_erroneous_indicators(criteria, indicators):
     # means is larger than ends
-    if indicators['whens'] > indicators['thens']:
-      new_means = CriteriaChunker.detect_indicator_phrase(criteria.text[:indicators['thens']], 'whens')
+    if indicators['when'] > indicators['then']:
+      new_means = CriteriaChunker.detect_indicator_phrase(criteria.text[:indicators['then']], 'when')
       #replication of #427 - refactor?
       if new_means[0]:
-        indicators['thens'] = criteria.text.lower().index(new_means[1].lower())
+        indicators['then'] = criteria.text.lower().index(new_means[1].lower())
       else:
-        indicators['thens'] = None
+        indicators['then'] = None
     return indicators
 
 class StoryChunker:
