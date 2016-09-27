@@ -668,8 +668,6 @@ class AnalyzerCriteria:
           if kind == 'when':
             for when in chunk.split(x):
               sentences_invalid.append(False)
-    #If several Scenarios add logic to compare "when"
-    #Maybe use identical_rule??
     return sentences_invalid.count(False) > 1
 
 
@@ -679,8 +677,9 @@ class AnalyzerCriteria:
     if len(stories) > 1:
       for x in stories:
         repeated_when.append(x.when == criteria.when)
-
-    return repeated_when.count(True) != len(stories)
+      return repeated_when.count(True) != len(stories)
+    else:
+      return False
 
   def identical_rule(criteria, cascade):
     identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
