@@ -56,9 +56,20 @@ def project(project_unique):
   perfect_stories = project.stories.filter(Story.errors == None).all()
   stories = project.stories.order_by('id').all()
 
-  return render_template('report.html', title=project.name, project=project, 
-    stories=stories, severe_errors=severe_errors, medium_errors=medium_errors, minor_errors=minor_errors, 
-    false_positives=false_positives, perfect_stories=perfect_stories, project_errors=project_errors)
+  criteria = criteria_gen(stories)
+  criteria_errors = criteria_errors_gen(criterias=criteria, false_positive=False, severity=None)
+  criteria_severe_errors = criteria_errors_gen(criterias=criteria, false_positive=False, severity="high")
+  criteria_medium_errors = criteria_errors_gen(criterias=criteria, false_positive=False, severity="medium")
+  criteria_minor_errors = criteria_errors_gen(criterias=criteria, false_positive=False, severity="minor")
+  criteria_false_positives = criteria_errors_gen(criterias=criteria, false_positive=True, severity=None)
+  perfect_criteria = perfect_criteria_gen(stories)
+
+  return render_template('report.html', title=project.name, project=project,
+                         stories=stories, severe_errors=severe_errors, medium_errors=medium_errors, minor_errors=minor_errors,
+                         false_positives=false_positives, perfect_stories=perfect_stories, project_errors=project_errors,
+                         criteria_errors=criteria_errors, criteria_severe_errors=criteria_severe_errors, criteria_medium_errors=criteria_medium_errors,
+                         criteria_minor_errors=criteria_minor_errors, criteria_false_positives=criteria_false_positives, criteria=criteria,
+                         perfect_criteria=perfect_criteria)
 
 @app.route('/project/<string:project_unique>/error/<int:error_id>', methods=['POST'])
 def update_error(project_unique, error_id):
@@ -90,6 +101,45 @@ def correct_minor_issues(project_unique):
     error.correct_minor_issue()
   project.analyze()
   return redirect(url_for('project', project_unique=project.id))
+
+
+def criteria_errors_gen(criterias, false_positive, severity):
+  criteria_errors = []
+  if(not false_positive and not severity):
+    for criteria in criterias:
+      errors = criteria.errors.filter_by(false_positive=False).all()
+      for error in errors:
+        criteria_errors.append(error)
+  elif(false_positive and not severity):
+    for criteria in criterias:
+      errors = criteria.errors.filter_by(false_positive=False).all()
+      for error in errors:
+        criteria_errors.append(error)
+  elif(severity):
+    for criteria in criterias:
+      errors = criteria.errors.filter_by(false_positive=False, severity=severity).all()
+      for error in errors:
+        criteria_errors.append(error)
+
+  return criteria_errors
+
+def criteria_gen(stories):
+  criteria_array = []
+  for story in stories:
+    criterias = story.criterias.all()
+    for criteria in criterias:
+      criteria_array.append(criteria)
+
+  return criteria_array
+
+def perfect_criteria_gen(stories):
+  criteria_array = []
+  for story in stories:
+    criterias = story.criterias.filter(Criteria.errors == None).all()
+    for criteria in criterias:
+      criteria_array.append(criteria)
+
+  return criteria_array
 
 
 # @app.route('/backend/api/v1.0/stories', methods=['POST'])
