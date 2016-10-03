@@ -1,40 +1,70 @@
 {% extends "layout.html" %}
-
 {% block content %}
-<div class="container">
-<center><h1> Project: {{ title }} - {{ stories|length }} </h1></center>
-<center>
-    <h1>Stories</h1>
-  <a class='btn btn-default upload-us-button' href={{ url_for('upload_file', project_unique=project.id) }}>{{ 'Reupload stories' if stories|length > 0 else 'Upload stories' }}</a>
-</center>
-<br>
-<div class='error-blocks'>
-  <div class='left-error-block'>
-    <div class='error-block'>
-      <div class='error-circle total-errors'>
-        <div class='height-fix'></div>
-        <div class='error-circle-content'>{{ project_errors|length }}</div>
-      </div>
-      <a href='?' class='error-text'>total issues</a>
-    </div>
+
+{#{% include "report_story.html" %}#}
+{#{% include "report_criteria.html" %}#}
+
+
+
+
+
+<div class="panel-group" id="accordion"> <!-- accordion 1 -->
+   <div class="panel panel-primary">
+
+        <div class="panel-heading"> <!-- panel-heading -->
+            <h4 class="panel-title"> <!-- title 1 -->
+            <a data-toggle="collapse" data-parent="#accordion" href="#accordionOne">
+              Stories
+            </a>
+           </h4>
+        </div>
+		<!-- panel body -->
+        <div id="accordionOne" class="panel-collapse collapse in">
+          <div class="panel-body">
+           {% include "report_story.html" %}
+
+          </div>
+        </div>
   </div>
-  <div class='right-error-block'>
-    <div class='error-block'>
-      <div class='error-circle minor-errors'>
-        <div class='height-fix'></div>
-        <div class='error-circle-content'>{{ minor_errors|length }}</div>
-      </div>
-      <a href='?severity=minor' class='error-text'>minor issues</a>
-      {% if minor_errors|length > 0 %}
-        <form class="ignore_form" action="{{project.id}}/correct_minor_issues" method=post>
-          <input type=submit value="fix all" class="btn">
-        </form>
-      {% endif %}
-    </div>
-  </div>
-</div>
-  
-  {% include "story_report.html" %}
-  
-</div>
+
+   <div class="panel panel-primary">  <!-- accordion 2 -->
+
+          <div class="panel-heading">
+          <h4 class="panel-title"> <!-- title 2 -->
+            <a data-toggle="collapse" data-parent="#accordion" href="#accordionTwo">
+              Criteria
+            </a>
+          </h4>
+          </div>
+		 <!-- panel body -->
+        <div id="accordionTwo" class="panel-collapse collapse">
+          <div class="panel-body">
+            {% include "report_criteria.html" %}
+          </div>
+        </div>
+
+   </div>
+
+    <div class="panel panel-primary">  <!-- accordion 3 -->
+
+        <div class="panel-heading">
+          <h4 class="panel-title"> <!-- title 3 -->
+            <a data-toggle="collapse" data-parent="#accordion" href="#accordionThree">
+              Titles
+            </a>
+          </h4>
+        </div>
+
+        <div id="accordionThree" class="panel-collapse collapse">
+          <!-- panel body -->
+          <div class="panel-body">
+          You must take personal responsibility.
+            You cannot change the circumstances,
+            the seasons, or the wind, but you can change yourself.
+            That is something you have charge of.
+        </div>
+
+     </div>
+
+ </div>
 {% endblock %}
