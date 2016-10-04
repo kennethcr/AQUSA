@@ -1,6 +1,5 @@
-{% extends "layout.html" %}
 
-{% block content %}
+
 <div class="container">
 <center><h1> Project: {{ title }} - {{ stories|length }} </h1></center>
 <center>
@@ -34,8 +33,6 @@
   </div>
 </div>
   
-  {% include "story_report.html" %}
-  {% include "report_criteria.html" %}
+{% include "story_report.html" %}
 
 </div>
-{% endblock %}
