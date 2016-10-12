@@ -141,6 +141,7 @@ class Criteria(db.Model):
     AnalyzerCriteria.unique(self, True)
     MinimalAnalyzerCriteria.minimal(self)
     AnalyzerCriteria.uniform(self)
+    AnalyzerCriteria.verifiable(self)
     self.remove_duplicates_of_false_positives()
     return self
 
@@ -490,14 +491,20 @@ ERROR_KINDS_CRITERIA = { 'well_formed_content': [
                   { 'subkind':'conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
                   { 'subkind':'one_feature', 'rule':"AnalyzerCriteria.atomic_one_feature_rule(criteria)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"}
                 ],
+                'verifiable':[
+                  { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  # { 'subkind':'stative_verb', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  # { 'subkind':'dinamic_verb', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  # { 'subkind':'output_rule', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                ],
                 'unique': [
                   { 'subkind':'identical', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate user stories")' }
                 ],
                 'uniform': [
                   { 'subkind':'uniform', 'rule':"AnalyzerCriteria.uniform_rule(criteria)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % criteria.format'}
                 ],
-
               }
+
 
 CHUNK_GRAMMAR = """
       NP: {<DT|JJ|NN.*>}
@@ -643,6 +650,10 @@ class AnalyzerCriteria:
     AnalyzerCriteria.generate_errors('uniform', criteria)
     return criteria
 
+  def verifiable(criteria):
+    AnalyzerCriteria.generate_errors('verifiable', criteria)
+    return criteria
+
   def detect_indicator_phrases(text):
     indicator_phrases = {'given': False, 'when': False, 'then': False}
     for key in indicator_phrases:
@@ -681,6 +692,20 @@ class AnalyzerCriteria:
     else:
       return False
 
+  def user_interaction_rule(criteria, kind):
+    result = AnalyzerCriteria.content_chunk(criteria.given.upper(), kind)
+    no_interaction = False
+    for x in result:
+      if hasattr(x, 'label'):
+        if 'PRP' in x.label().upper(): no_interaction = True
+        elif 'NNP' in x.label().upper(): no_interaction = True
+        elif 'NNPS' in x.label().upper(): no_interaction = True
+      else:
+        if x[1] == 'PRP': no_interaction = True
+        elif x[1] == 'NNP': no_interaction = True
+        elif x[1] == 'NNPS': no_interaction = True
+    return no_interaction
+
   def identical_rule(criteria, cascade):
     identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
     identical_stories.remove(criteria)
@@ -707,8 +732,6 @@ class AnalyzerCriteria:
       for x in result.subtrees():
         if tag.upper() in x.label(): well_formed = False
     return well_formed
-
-
 
   def uniform_rule(criteria):
      project_format = criteria.format.split(',')
