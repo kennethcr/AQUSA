@@ -462,7 +462,7 @@ THEN_INDICATORS = ["Then the", "Then"]
 ROLE_INDICATORS = ["^As an ", "^As a ", "^As "]
 MEANS_INDICATORS = ["I'm able to ", "I am able to ", "I want to ", "I wish to ", "I can "]
 ENDS_INDICATORS = ["So that ", "In order to ", "So "]
-CONJUNCTIONS = [' and ', '&', '+', ' or ']
+CONJUNCTIONS = [' and ', '&', '+', ' or ', ' but ']
 PUNCTUATION = ['.', ';', ':', '‒', '–', '—', '―', '‐', '-', '?', '*']
 BRACKETS = [['(', ')'], ['[', ']'], ['{', '}'], ['⟨', '⟩']]
 ERROR_KINDS = { 'well_formed_content': [
@@ -492,9 +492,9 @@ ERROR_KINDS_CRITERIA = { 'well_formed_content': [
                   { 'subkind':'one_feature', 'rule':"AnalyzerCriteria.atomic_one_feature_rule(criteria)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"}
                 ],
                 'verifiable':[
-                  { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
-                  # { 'subkind':'stative_verb', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
-                  # { 'subkind':'dinamic_verb', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
+                  { 'subkind':'stative_verb', 'rule':'AnalyzerCriteria.stative_verb_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
+                  { 'subkind':'dynamic_verb', 'rule':'AnalyzerCriteria.dynamic_verb_rule(criteria,"when")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, WHEN_INDICATORS, 'high')"},
                   # { 'subkind':'output_rule', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
                 ],
                 'unique': [
@@ -705,6 +705,39 @@ class AnalyzerCriteria:
         elif x[1] == 'NNP': no_interaction = True
         elif x[1] == 'NNPS': no_interaction = True
     return no_interaction
+
+  def stative_verb_rule(criteria, kind):
+    result = AnalyzerCriteria.content_chunk(criteria.given.upper(), kind)
+    no_state = False
+    for x in result:
+      if hasattr(x, 'label'):
+        if 'VBZ' in x.label().upper(): no_state = True
+        elif 'VBN' in x.label().upper(): no_state = True
+        elif 'VBG' in x.label().upper(): no_state = True
+        elif 'VBD' in x.label().upper(): no_state = True
+      else:
+        if x[1] == 'VBZ': no_state = True
+        elif x[1] == 'VBN': no_state = True
+        elif x[1] == 'VBG': no_state = True
+        elif x[1] == 'VBD': no_state = True    
+    return no_state
+
+  def dynamic_verb_rule(criteria, kind):
+    result = AnalyzerCriteria.content_chunk(criteria.when, kind)
+    no_action = False
+    for x in result:
+      if hasattr(x, 'label'):
+        if 'VB' in x.label().upper(): no_action = True
+        elif 'VBD' in x.label().upper(): no_action = True
+        elif 'VBN' in x.label().upper(): no_action = True
+        elif 'VBP' in x.label().upper(): no_action = True
+      else:
+        if x[1] == 'VB': no_action = True
+        elif x[1] == 'VBD': no_action = True
+        elif x[1] == 'VBN': no_action = True
+        elif x[1] == 'VBP': no_action = True
+    return no_action
+
 
   def identical_rule(criteria, cascade):
     identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
