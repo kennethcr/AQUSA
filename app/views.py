@@ -2,7 +2,7 @@ from flask import jsonify, abort, session, render_template, request, flash, redi
 from werkzeug import secure_filename
 import os
 from app import app, babel
-from .models import Story, Project, Error, Criteria
+from .models import Story, Project, Error, Criteria, Title
 from config import LANGUAGES
 
 @app.route('/')
@@ -64,12 +64,22 @@ def project(project_unique):
   criteria_false_positives = criteria_errors_gen(criterias=criteria, false_positive=True, severity=None)
   perfect_criteria = perfect_criteria_gen(stories)
 
+  titles = title_gen(stories)
+  title_errors = title_errors_gen(titles=titles, false_positive=False, severity=None)
+  title_severe_errors = title_errors_gen(titles=titles, false_positive=False, severity="high")
+  title_medium_errors = title_errors_gen(titles=titles, false_positive=False, severity="medium")
+  title_minor_errors = title_errors_gen(titles=titles, false_positive=False, severity="minor")
+  title_false_positives = title_errors_gen(titles=titles, false_positive=True, severity=None)
+  perfect_title = perfect_title_gen(stories)
+
   return render_template('report.html', title=project.name, project=project,
                          stories=stories, severe_errors=severe_errors, medium_errors=medium_errors, minor_errors=minor_errors,
                          false_positives=false_positives, perfect_stories=perfect_stories, project_errors=project_errors,
                          criteria_errors=criteria_errors, criteria_severe_errors=criteria_severe_errors, criteria_medium_errors=criteria_medium_errors,
                          criteria_minor_errors=criteria_minor_errors, criteria_false_positives=criteria_false_positives, criteria=criteria,
-                         perfect_criteria=perfect_criteria)
+                         perfect_criteria=perfect_criteria, titles=titles, title_errors=title_errors, title_severe_errors=title_severe_errors,
+                         title_medium_errors=title_medium_errors, title_minor_errors=title_minor_errors, title_false_positives=title_false_positives,
+                         perfect_title=perfect_title)
 
 @app.route('/project/<string:project_unique>/error/<int:error_id>', methods=['POST'])
 def update_error(project_unique, error_id):
@@ -140,6 +150,44 @@ def perfect_criteria_gen(stories):
       criteria_array.append(criteria)
 
   return criteria_array
+
+def title_gen(stories):
+  title_array = []
+  for story in stories:
+    titles = story.titles.all()
+    for title in titles:
+      title_array.append(title)
+
+  return title_array
+
+def title_errors_gen(titles, false_positive, severity):
+  title_errors = []
+  if(not false_positive and not severity):
+    for criteria in titles:
+      errors = criteria.errors.filter_by(false_positive=False).all()
+      for error in errors:
+        title_errors.append(error)
+  elif(false_positive and not severity):
+    for criteria in titles:
+      errors = criteria.errors.filter_by(false_positive=False).all()
+      for error in errors:
+        title_errors.append(error)
+  elif(severity):
+    for criteria in titles:
+      errors = criteria.errors.filter_by(false_positive=False, severity=severity).all()
+      for error in errors:
+        title_errors.append(error)
+
+  return title_errors
+
+def perfect_title_gen(stories):
+  title_array = []
+  for story in stories:
+    titles = story.criterias.filter(Title.errors == None).all()
+    for title in titles:
+      title_array.append(title)
+
+  return title_array
 
 
 # @app.route('/backend/api/v1.0/stories', methods=['POST'])
