@@ -1,7 +1,7 @@
 
 <div class="container">
 <center>
-    <h1>Criteria - {{ criteria|length }}</h1>
+    <h1>Titles - {{ titles|length }}</h1>
 </center>
 <br>
 <div class='error-blocks'>
@@ -9,7 +9,7 @@
     <div class='error-block'>
       <div class='error-circle total-errors'>
         <div class='height-fix'></div>
-        <div class='error-circle-content'>{{ criteria_errors|length }}</div>
+        <div class='error-circle-content'>{{ title_errors|length }}</div>
       </div>
       <a href='?' class='error-text'>total issues</a>
     </div>
@@ -18,18 +18,18 @@
     <div class='error-block'>
       <div class='error-circle minor-errors'>
         <div class='height-fix'></div>
-        <div class='error-circle-content'>{{ criteria_minor_errors|length }}</div>
+        <div class='error-circle-content'>{{ title_minor_errors|length }}</div>
       </div>
       <a href='?severity=minor' class='error-text'>minor issues</a>
-      {% if criteria_minor_errors|length > 0 %}
-        <form class="ignore_form" action="{{project.id}}/correct_minor_issues" method=post>
+      {% if title_minor_errors|length > 0 %}
+        <form class="ignore_form" action="{{project.id}}/title_minor_issues" method=post>
           <input type=submit value="fix all" class="btn">
         </form>
       {% endif %}
     </div>
   </div>
 </div>
-  
-{% include "criteria_report.html" %}
+
+{% include "title_report.html" %}
 
 </div>
