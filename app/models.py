@@ -194,10 +194,10 @@ class Title(db.Model):
     db.session.commit()
 
   def analyze(self):
-    WellFormedAnalyzer.well_formed(self)
-    Analyzer.atomic(self)
-    Analyzer.unique(self, True)
-    MinimalAnalyzer.minimal(self)
+    WellFormedAnalyzerTitle.well_formed(self)
+    # Analyzer.atomic(self)
+    # Analyzer.unique(self, True)
+    # MinimalAnalyzer.minimal(self)
     #Analyzer.uniform(self)
     self.remove_duplicates_of_false_positives()
     return self
@@ -304,8 +304,8 @@ class Project(db.Model):
         criteria.re_chunk()
         criteria.re_analyze()
 
-      # for title in story.titles.all():
-      #   title.re_analyze()
+      for title in story.titles.all():
+        title.re_analyze()
 
       story.re_chunk()
       story.re_analyze()
@@ -437,7 +437,7 @@ class ErrorTitle(db.Model):
     return self
 
   def create_unless_duplicate(highlight, kind, subkind, severity, title):
-    error = ErrorCriteria(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, story_id=title.story_id)
+    error = ErrorTitle(highlight=highlight, kind=kind, subkind=subkind, severity=severity, title_id=title.id, story_id=title.story_id)
     duplicates = ErrorTitle.query.filter_by(highlight=highlight, kind=kind, subkind=subkind,
       severity=severity, title_id=title.id, story_id=title.story_id, false_positive=False).all()
     if duplicates:
@@ -870,6 +870,16 @@ class WellFormedAnalyzerCriteria:
         highlight = criteria.when + AnalyzerCriteria.inject_text(',') + ' ' + criteria.then
         ErrorCriteria.create_unless_duplicate(highlight, 'well_formed', 'no_then_comma', 'minor', criteria )
     return criteria
+
+class WellFormedAnalyzerTitle:
+  def well_formed(story):
+    WellFormedAnalyzerTitle.title(story)
+    return story
+
+  def title(story):
+    # if not story.means:
+    ErrorTitle.create_unless_duplicate('Add a means', 'well_formed', 'no_means', 'high', story )
+    return story
 
 class MinimalAnalyzer:
   def minimal(story):

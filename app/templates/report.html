@@ -7,6 +7,11 @@
 
 
 
+<center>
+    <h1> Project: {{ title }}</h1>
+    <a class='btn btn-default upload-us-button' href={{ url_for('upload_file', project_unique=project.id) }}>{{ 'Reupload stories' if titles|length > 0 else 'Upload stories' }}</a>
+</center>
+<br>
 
 <div class="panel-group" id="accordion"> <!-- accordion 1 -->
    <div class="panel panel-primary">
@@ -58,10 +63,7 @@
         <div id="accordionThree" class="panel-collapse collapse">
           <!-- panel body -->
           <div class="panel-body">
-          You must take personal responsibility.
-            You cannot change the circumstances,
-            the seasons, or the wind, but you can change yourself.
-            That is something you have charge of.
+          {% include "report_title.html" %}
         </div>
 
      </div>

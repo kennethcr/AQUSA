@@ -1,10 +1,8 @@
 
 
 <div class="container">
-<center><h1> Project: {{ title }} - {{ stories|length }} </h1></center>
 <center>
-    <h1>Stories</h1>
-  <a class='btn btn-default upload-us-button' href={{ url_for('upload_file', project_unique=project.id) }}>{{ 'Reupload stories' if stories|length > 0 else 'Upload stories' }}</a>
+    <h1>Stories - {{ stories|length }}</h1>
 </center>
 <br>
 <div class='error-blocks'>
