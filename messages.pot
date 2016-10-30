@@ -102,3 +102,15 @@ msgstr "Irregular format"
 
 msgid "uniform_uniform_explanation"
 msgstr "This user story its format deviates from the format used by the majority of your user stories"
+
+msgid "atomic_one_feature"
+msgstr "Acceptance criteria not atomic"
+
+msgid "atomic_one_feature_explanation"
+msgstr "The scenarios for a story should revolve around single event. One or more scenarios in this acceptance criteria are different"
+
+msgid "atomic_criteria_conjunctions"
+msgstr "Acceptance criteria not atomic"
+
+msgid "atomic_criteria_conjunctions_explanation"
+msgstr "The scenario should be composed by one single event, consider if this story should be split"

@@ -483,13 +483,14 @@ ERROR_KINDS = { 'well_formed_content': [
               }
 
 ERROR_KINDS_CRITERIA = { 'well_formed_content': [
-                  { 'subkind': 'when', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.when, "when", ["when"])', 'severity':'medium', 'highlight':'str("Make sure the means includes a verb and a noun. Our analysis shows the means currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.when, "when")'},
-                  { 'subkind': 'given', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "role", ["NP"])', 'severity':'medium', 'highlight':'str("Make sure the role includes a person noun. Our analysis shows the role currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "given")'},
+                  { 'subkind': 'when', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.when, "when", ["when"])', 'severity':'medium', 'highlight':'str(Make sure the acceptance criteria contains an action/transition state. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.when, "when")'},
+                  { 'subkind': 'given', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "given", ["given"])', 'severity':'medium', 'highlight':'str("Make sure the given represents a state. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "given")'},
+                  { 'subkind': 'then', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "then", ["then"])', 'severity':'medium', 'highlight':'str("Make sure the acceptance criteria represents the desired outcome. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "then")'},
                 ],
 
                 'atomic': [
-                  { 'subkind':'conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
-                  { 'subkind':'one_feature', 'rule':"AnalyzerCriteria.atomic_one_feature_rule(criteria)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"}
+                  { 'subkind':'criteria_conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  { 'subkind':'one_feature', 'rule':"AnalyzerCriteria.atomic_one_feature_rule(criteria)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, WHEN_INDICATORS, 'high')"}
                 ],
                 'verifiable':[
                   { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
@@ -498,7 +499,7 @@ ERROR_KINDS_CRITERIA = { 'well_formed_content': [
                   # { 'subkind':'output_rule', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
                 ],
                 'unique': [
-                  { 'subkind':'identical', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate user stories")' }
+                  { 'subkind':'identical', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate acceptance criteria")' }
                 ],
                 'uniform': [
                   { 'subkind':'uniform', 'rule':"AnalyzerCriteria.uniform_rule(criteria)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % criteria.format'}
