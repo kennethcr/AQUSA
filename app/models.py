@@ -194,11 +194,7 @@ class Title(db.Model):
     db.session.commit()
 
   def analyze(self):
-    WellFormedAnalyzerTitle.well_formed(self)
-    # Analyzer.atomic(self)
-    # Analyzer.unique(self, True)
-    # MinimalAnalyzer.minimal(self)
-    #Analyzer.uniform(self)
+    AnalyzerTitle.verifiable(self.text)
     self.remove_duplicates_of_false_positives()
     return self
 
@@ -496,16 +492,20 @@ ERROR_KINDS_CRITERIA = { 'well_formed_content': [
                   { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'stative_verb', 'rule':'AnalyzerCriteria.stative_verb_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'dynamic_verb', 'rule':'AnalyzerCriteria.dynamic_verb_rule(criteria,"when")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, WHEN_INDICATORS, 'high')"},
-                  # { 'subkind':'output_rule', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  # { 'subkind':'output', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
                 ],
                 'unique': [
-                  { 'subkind':'identical', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate acceptance criteria")' }
+                  { 'subkind':'identical_criteria', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate acceptance criteria")' }
                 ],
                 'uniform': [
-                  { 'subkind':'uniform', 'rule':"AnalyzerCriteria.uniform_rule(criteria)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % criteria.format'}
+                  { 'subkind':'uniform_criteria', 'rule':"AnalyzerCriteria.uniform_rule(criteria)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % criteria.format'}
                 ],
               }
 
+ERROR_KINDS_TITLE = { 'verifiable':[
+                  { 'subkind':'title', 'rule':'AnalyzerTitle.verifiable_rule(title)', 'severity':'high', 'highlight':"AnalyzerTitle.highlight_text(title,'high')"}
+                ],
+              }
 
 CHUNK_GRAMMAR = """
       NP: {<DT|JJ|NN.*>}
@@ -524,7 +524,13 @@ CHUNK_GRAMMAR_CRITERIA = """
       WHEN: {<AP>?<VP>}
       THEN: {<AP>?<VP>}
     """
-
+CHUNK_GRAMMAR_TITLE = """
+      NP: {<DT|JJ|NN.*>}
+      NNP: {<NNP.*>}
+      AP: {<RB.*|JJ.*>}
+      VP: {<VB.*><NP>*}
+      TITLE: {<AP>?<VP>}
+    """
 class Analyzer:
   def atomic(story):
     for chunk in ['"role"', '"means"', '"ends"']:
@@ -806,6 +812,54 @@ class AnalyzerCriteria:
         indicator_words = nltk.word_tokenize(indicator)
         pos_text = [x for x in pos_text if x[0] not in indicator_words]
     return pos_text
+
+class AnalyzerTitle:
+
+  def verifiable(title):
+    AnalyzerTitle.generate_errors('verifiable', title)
+    return title
+
+  def generate_errors(kind, title, **kwargs):
+    for kwarg in kwargs:
+      exec(kwarg+'='+ str(kwargs[kwarg]))
+    for error_type in ERROR_KINDS_TITLE[kind]:
+      if eval(error_type['rule']):
+        ErrorTitle.create_unless_duplicate(eval(error_type['highlight']), kind, error_type['subkind'], error_type['severity'], title)
+
+  def inject_text(text, severity='medium'):
+    return "<span class='highlight-text severity-" + severity + "'>%s</span>" % text
+
+  def verifiable_rule(text):
+    result = AnalyzerTitle.content_chunk(text)
+    verifiable = False
+    for x in result:
+     if hasattr(x, 'label'):
+      if 'VB' in x: verifiable = True #index error, not accessing the appropriate tuple
+      elif 'VBZ' in x[1]: verifiable = True
+      elif 'VBN' in x[1]: verifiable = True
+      elif 'VBG' in x[1]: verifiable = True
+      elif 'VBD' in x[1]: verifiable = True
+      elif 'VBP' in x[1]: verifiable = True
+    return verifiable
+
+
+  def highlight_text(title, severity):
+    highlighted_text = title.text
+    #indices = []
+    #for word in word_array:
+    #  if word in title.text.lower(): indices += [ [title.text.index(word), word] ]
+    #indices.sort(reverse=True)
+    #for index, word in indices:
+    #  highlighted_text = highlighted_text[:index] + "<span class='highlight-text severity-" + severity + "'>" + word + "</span>" + highlighted_text[index+len(word):]
+    return highlighted_text
+
+  def content_chunk(chunk):
+    sentence = AQUSATagger.parse(chunk)[0]
+    #sentence = AnalyzerTitle.strip_indicators_pos(chunk, sentence, kind)
+    cp = nltk.RegexpParser(CHUNK_GRAMMAR_TITLE)
+    result = cp.parse(sentence)
+    return result
+
 
 class WellFormedAnalyzer:
   def well_formed(story):
