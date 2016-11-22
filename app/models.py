@@ -194,7 +194,7 @@ class Title(db.Model):
     db.session.commit()
 
   def analyze(self):
-    AnalyzerTitle.verifiable(self.text)
+    AnalyzerTitle.verifiable(self)
     self.remove_duplicates_of_false_positives()
     return self
 
@@ -829,17 +829,42 @@ class AnalyzerTitle:
   def inject_text(text, severity='medium'):
     return "<span class='highlight-text severity-" + severity + "'>%s</span>" % text
 
-  def verifiable_rule(text):
-    result = AnalyzerTitle.content_chunk(text)
+  def verifiable_rule(title):
+    result = AnalyzerTitle.content_chunk(title.text)
     verifiable = False
     for x in result:
-     if hasattr(x, 'label'):
-      if 'VB' in x: verifiable = True #index error, not accessing the appropriate tuple
-      elif 'VBZ' in x[1]: verifiable = True
-      elif 'VBN' in x[1]: verifiable = True
-      elif 'VBG' in x[1]: verifiable = True
-      elif 'VBD' in x[1]: verifiable = True
-      elif 'VBP' in x[1]: verifiable = True
+      try:
+        if hasattr(x, 'label'):
+          if len(x[0][0][1]) > 1:
+            if 'VB' == x[0][0][1]: verifiable = True #index error, not accessing the appropriate tuple
+            elif 'VBZ' == x[0][0][1]: verifiable = True
+            elif 'VBN' == x[0][0][1]: verifiable = True
+            elif 'VBG' == x[0][0][1]: verifiable = True
+            elif 'VBD' == x[0][0][1]: verifiable = True
+            elif 'VBP' == x[0][0][1]: verifiable = True
+          else:
+            if 'VB' == x[0][1]: verifiable = True #index error, not accessing the appropriate tuple
+            elif 'VBZ' == x[0][1]: verifiable = True
+            elif 'VBN' == x[0][1]: verifiable = True
+            elif 'VBG' == x[0][1]: verifiable = True
+            elif 'VBD' == x[0][1]: verifiable = True
+            elif 'VBP' == x[0][1]: verifiable = True
+        else:
+          if 'VB' == x[1].upper(): verifiable = True
+          elif 'VBZ' == x[1].upper(): verifiable = True
+          elif 'VBN' == x[1].upper(): verifiable = True
+          elif 'VBG' == x[1].upper(): verifiable = True
+          elif 'VBD' == x[1].upper(): verifiable = True
+          elif 'VBP' == x[1].upper(): verifiable = True
+      except IndexError as e:
+        if 'VB' == x[0][1]: verifiable = True #index error, not accessing the appropriate tuple
+        elif 'VBZ' == x[0][1]: verifiable = True
+        elif 'VBN' == x[0][1]: verifiable = True
+        elif 'VBG' == x[0][1]: verifiable = True
+        elif 'VBD' == x[0][1]: verifiable = True
+        elif 'VBP' == x[0][1]: verifiable = True
+
+
     return verifiable
 
 
@@ -855,10 +880,12 @@ class AnalyzerTitle:
 
   def content_chunk(chunk):
     sentence = AQUSATagger.parse(chunk)[0]
-    #sentence = AnalyzerTitle.strip_indicators_pos(chunk, sentence, kind)
+    # sentence = AnalyzerTitle.strip_indicators_pos(chunk, sentence, kind)
     cp = nltk.RegexpParser(CHUNK_GRAMMAR_TITLE)
     result = cp.parse(sentence)
     return result
+
+
 
 
 class WellFormedAnalyzer:
