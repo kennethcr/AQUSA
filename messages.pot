@@ -125,7 +125,7 @@ msgid "verifiable_stative_verb"
 msgstr "Given should be a state"
 
 msgid "verifiable_stative_verb_explanation"
-msgstr "The verb in givens needs to be a stative verb, no action should be described"
+msgstr "There is a stative verb missing in the given, either add one or avoid describing any action"
 
 msgid "verifiable_dynamic_verb"
 msgstr "No dynamic verb was found in When"
@@ -143,7 +143,7 @@ msgid "verifiable_title"
 msgstr "No verb found in title"
 
 msgid "verifiable_title_explanation"
-msgstr "The Then should provide an output"
+msgstr "The title should describe an activity"
 
 msgid "unique_identical_criteria"
 msgstr "Duplicated acceptance criteria"

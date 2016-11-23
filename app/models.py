@@ -715,34 +715,34 @@ class AnalyzerCriteria:
 
   def stative_verb_rule(criteria, kind):
     result = AnalyzerCriteria.content_chunk(criteria.given.upper(), kind)
-    no_state = False
+    no_state = True
     for x in result:
       if hasattr(x, 'label'):
-        if 'VBZ' in x.label().upper(): no_state = True
-        elif 'VBN' in x.label().upper(): no_state = True
-        elif 'VBG' in x.label().upper(): no_state = True
-        elif 'VBD' in x.label().upper(): no_state = True
+        if 'VBZ' in x.label().upper(): no_state = False
+        elif 'VBN' in x.label().upper(): no_state = False
+        elif 'VBG' in x.label().upper(): no_state = False
+        elif 'VBD' in x.label().upper(): no_state = False
       else:
-        if x[1] == 'VBZ': no_state = True
-        elif x[1] == 'VBN': no_state = True
-        elif x[1] == 'VBG': no_state = True
-        elif x[1] == 'VBD': no_state = True    
+        if x[1] == 'VBZ': no_state = False
+        elif x[1] == 'VBN': no_state = False
+        elif x[1] == 'VBG': no_state = False
+        elif x[1] == 'VBD': no_state = False    
     return no_state
 
   def dynamic_verb_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.when, kind)
-    no_action = False
+    result = AnalyzerCriteria.content_chunk(criteria.when.upper(), kind)
+    no_action = True
     for x in result:
       if hasattr(x, 'label'):
-        if 'VB' in x.label().upper(): no_action = True
-        elif 'VBD' in x.label().upper(): no_action = True
-        elif 'VBN' in x.label().upper(): no_action = True
-        elif 'VBP' in x.label().upper(): no_action = True
+        if 'VB' in x.label().upper(): no_action = False
+        elif 'VBD' in x.label().upper(): no_action = False
+        elif 'VBN' in x.label().upper(): no_action = False
+        elif 'VBP' in x.label().upper(): no_action = False
       else:
-        if x[1] == 'VB': no_action = True
-        elif x[1] == 'VBD': no_action = True
-        elif x[1] == 'VBN': no_action = True
-        elif x[1] == 'VBP': no_action = True
+        if x[1] == 'VB': no_action = False
+        elif x[1] == 'VBD': no_action = False
+        elif x[1] == 'VBN': no_action = False
+        elif x[1] == 'VBP': no_action = False
     return no_action
 
 
@@ -831,41 +831,39 @@ class AnalyzerTitle:
 
   def verifiable_rule(title):
     result = AnalyzerTitle.content_chunk(title.text)
-    verifiable = False
+    not_verifiable = True
     for x in result:
       try:
         if hasattr(x, 'label'):
           if len(x[0][0][1]) > 1:
-            if 'VB' == x[0][0][1]: verifiable = True #index error, not accessing the appropriate tuple
-            elif 'VBZ' == x[0][0][1]: verifiable = True
-            elif 'VBN' == x[0][0][1]: verifiable = True
-            elif 'VBG' == x[0][0][1]: verifiable = True
-            elif 'VBD' == x[0][0][1]: verifiable = True
-            elif 'VBP' == x[0][0][1]: verifiable = True
+            if 'VB' == x[0][0][1]: not_verifiable = False #index error, not accessing the appropriate tuple
+            elif 'VBZ' == x[0][0][1]: not_verifiable = False
+            elif 'VBN' == x[0][0][1]: not_verifiable = False
+            elif 'VBG' == x[0][0][1]: not_verifiable = False
+            elif 'VBD' == x[0][0][1]: not_verifiable = False
+            elif 'VBP' == x[0][0][1]: not_verifiable = False
           else:
-            if 'VB' == x[0][1]: verifiable = True #index error, not accessing the appropriate tuple
-            elif 'VBZ' == x[0][1]: verifiable = True
-            elif 'VBN' == x[0][1]: verifiable = True
-            elif 'VBG' == x[0][1]: verifiable = True
-            elif 'VBD' == x[0][1]: verifiable = True
-            elif 'VBP' == x[0][1]: verifiable = True
+            if 'VB' == x[0][1]: not_verifiable = False #index error, not accessing the appropriate tuple
+            elif 'VBZ' == x[0][1]: not_verifiable = False
+            elif 'VBN' == x[0][1]: not_verifiable = False
+            elif 'VBG' == x[0][1]: not_verifiable = False
+            elif 'VBD' == x[0][1]: not_verifiable = False
+            elif 'VBP' == x[0][1]: not_verifiable = False
         else:
-          if 'VB' == x[1].upper(): verifiable = True
-          elif 'VBZ' == x[1].upper(): verifiable = True
-          elif 'VBN' == x[1].upper(): verifiable = True
-          elif 'VBG' == x[1].upper(): verifiable = True
-          elif 'VBD' == x[1].upper(): verifiable = True
-          elif 'VBP' == x[1].upper(): verifiable = True
+          if 'VB' == x[1].upper(): not_verifiable = False
+          elif 'VBZ' == x[1].upper(): not_verifiable = False
+          elif 'VBN' == x[1].upper(): not_verifiable = False
+          elif 'VBG' == x[1].upper(): not_verifiable = False
+          elif 'VBD' == x[1].upper(): not_verifiable = False
+          elif 'VBP' == x[1].upper(): not_verifiable = False
       except IndexError as e:
-        if 'VB' == x[0][1]: verifiable = True #index error, not accessing the appropriate tuple
-        elif 'VBZ' == x[0][1]: verifiable = True
-        elif 'VBN' == x[0][1]: verifiable = True
-        elif 'VBG' == x[0][1]: verifiable = True
-        elif 'VBD' == x[0][1]: verifiable = True
-        elif 'VBP' == x[0][1]: verifiable = True
-
-
-    return verifiable
+        if 'VB' == x[0][1]: not_verifiable = False #index error, not accessing the appropriate tuple
+        elif 'VBZ' == x[0][1]: not_verifiable = False
+        elif 'VBN' == x[0][1]: not_verifiable = False
+        elif 'VBG' == x[0][1]: not_verifiable = False
+        elif 'VBD' == x[0][1]: not_verifiable = False
+        elif 'VBP' == x[0][1]: not_verifiable = False
+    return not_verifiable
 
 
   def highlight_text(title, severity):
