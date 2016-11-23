@@ -751,7 +751,7 @@ class AnalyzerCriteria:
     w1=""
     w2=""
     is_similar = False
-    output_list['output','outcome','report','interface','message', 'email']
+    output_list = ['output','outcome','report','interface','message', 'email']
     for x in output_list:
         w1 = wordnet.synset(x+'.n.01')
         w2 = wordnet.synset(word+'.n.01')
@@ -760,29 +760,22 @@ class AnalyzerCriteria:
 
 
   def output_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.then.upper(), kind)
-    output = False
-    noun_list=['NN','NNS']
-    for x in result:
-      if hasattr(x, 'label'):
-        if x[1] in noun_list:
-            output = AnalyzerCriteria.semantic_similarity(x[0])
-    return output
-
- #def output_rule(criteria, kind):
-  #  result = AnalyzerCriteria.content_chunk(criteria.then.upper(), kind)
-  #  output = False
-    #synonyms = []
-  #  for syn in wordnet.synsets("output"):
-  #    for l in syn.lemmas():
-  #      synonyms.append(l.name())
-  #  for x in result:
-  #    if hasattr(x, 'label'):
-  #      if x.label().upper() in synonyms: output = True
-  #    else:
-  #      if x[0] in synonyms: output= True
-  #  return output
-
+    if not criteria.then == None:
+      result = AnalyzerCriteria.content_chunk(criteria.then.upper(), kind)
+      output = False
+      noun_list=['NN','NNS']
+      for x in result:
+        try:
+          if hasattr(x, 'label'):
+            if len(x[0][0][1]) > 1:
+              if x[0][0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+            else:
+              if x[0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+          else:
+            if x[1].upper() in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+        except IndexError as e:
+          if x[0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+      return output
 
   def identical_rule(criteria, cascade):
     identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
