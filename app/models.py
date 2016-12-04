@@ -700,7 +700,8 @@ class AnalyzerCriteria:
       return False
 
   def user_interaction_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.given.upper(), kind)
+    given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
+    result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
     no_interaction = False
     for x in result:
       if hasattr(x, 'label'):
@@ -714,7 +715,8 @@ class AnalyzerCriteria:
     return no_interaction
 
   def stative_verb_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.given.upper(), kind)
+    given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
+    result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
     no_state = True
     for x in result:
       if hasattr(x, 'label'):
@@ -730,7 +732,8 @@ class AnalyzerCriteria:
     return no_state
 
   def dynamic_verb_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.when.upper(), kind)
+    when_cleaned = AnalyzerCriteria.clean_component(criteria.when.upper())
+    result = AnalyzerCriteria.content_chunk(when_cleaned, kind)
     no_action = True
     for x in result:
       if hasattr(x, 'label'):
@@ -813,6 +816,11 @@ class AnalyzerCriteria:
         pos_text = [x for x in pos_text if x[0] not in indicator_words]
     return pos_text
 
+  def clean_component(component):
+    component = component.replace('\r', '')
+    component = component.replace('\n', '')
+    return component
+
 class AnalyzerTitle:
 
   def verifiable(title):
@@ -836,14 +844,14 @@ class AnalyzerTitle:
       try:
         if hasattr(x, 'label'):
           if len(x[0][0][1]) > 1:
-            if 'VB' == x[0][0][1]: not_verifiable = False #index error, not accessing the appropriate tuple
+            if 'VB' == x[0][0][1]: not_verifiable = False
             elif 'VBZ' == x[0][0][1]: not_verifiable = False
             elif 'VBN' == x[0][0][1]: not_verifiable = False
             elif 'VBG' == x[0][0][1]: not_verifiable = False
             elif 'VBD' == x[0][0][1]: not_verifiable = False
             elif 'VBP' == x[0][0][1]: not_verifiable = False
           else:
-            if 'VB' == x[0][1]: not_verifiable = False #index error, not accessing the appropriate tuple
+            if 'VB' == x[0][1]: not_verifiable = False
             elif 'VBZ' == x[0][1]: not_verifiable = False
             elif 'VBN' == x[0][1]: not_verifiable = False
             elif 'VBG' == x[0][1]: not_verifiable = False
@@ -857,7 +865,7 @@ class AnalyzerTitle:
           elif 'VBD' == x[1].upper(): not_verifiable = False
           elif 'VBP' == x[1].upper(): not_verifiable = False
       except IndexError as e:
-        if 'VB' == x[0][1]: not_verifiable = False #index error, not accessing the appropriate tuple
+        if 'VB' == x[0][1]: not_verifiable = False
         elif 'VBZ' == x[0][1]: not_verifiable = False
         elif 'VBN' == x[0][1]: not_verifiable = False
         elif 'VBG' == x[0][1]: not_verifiable = False
@@ -882,9 +890,6 @@ class AnalyzerTitle:
     cp = nltk.RegexpParser(CHUNK_GRAMMAR_TITLE)
     result = cp.parse(sentence)
     return result
-
-
-
 
 class WellFormedAnalyzer:
   def well_formed(story):
