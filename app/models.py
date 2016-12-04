@@ -11,7 +11,8 @@ import nltk.metrics.distance
 import pandas
 import operator
 from collections import Counter
-# Classes: Story, Error, Project  
+from nltk.corpus import wordnet
+# Classes: Story, Error, Project
 
 class Story(db.Model):
   id = db.Column(db.Integer, primary_key=True)
@@ -239,7 +240,7 @@ class Project(db.Model):
 
   def delete(self):
     db.session.delete(self)
-    db.session.commit() 
+    db.session.commit()
 
   def save(self):
     db.session.add(self)
@@ -481,7 +482,7 @@ ERROR_KINDS = { 'well_formed_content': [
 ERROR_KINDS_CRITERIA = { 'well_formed_content': [
                   { 'subkind': 'when', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.when, "when", ["when"])', 'severity':'medium', 'highlight':'str(Make sure the acceptance criteria contains an action/transition state. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.when, "when")'},
                   { 'subkind': 'given', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "given", ["given"])', 'severity':'medium', 'highlight':'str("Make sure the given represents a state. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "given")'},
-                  { 'subkind': 'then', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "then", ["then"])', 'severity':'medium', 'highlight':'str("Make sure the acceptance criteria represents the desired outcome. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "then")'},
+                  { 'subkind': 'then', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.then, "then", ["then"])', 'severity':'medium', 'highlight':'str("Make sure the acceptance criteria represents the desired outcome. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "then")'},
                 ],
 
                 'atomic': [
@@ -492,7 +493,7 @@ ERROR_KINDS_CRITERIA = { 'well_formed_content': [
                   { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'stative_verb', 'rule':'AnalyzerCriteria.stative_verb_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'dynamic_verb', 'rule':'AnalyzerCriteria.dynamic_verb_rule(criteria,"when")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, WHEN_INDICATORS, 'high')"},
-                  # { 'subkind':'output', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  { 'subkind':'output', 'rule':'AnalyzerCriteria.output_rule(criteria,"then")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, THEN_INDICATORS, 'high')"},
                 ],
                 'unique': [
                   { 'subkind':'identical_criteria', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate acceptance criteria")' }
@@ -725,10 +726,17 @@ class AnalyzerCriteria:
         elif 'VBG' in x.label().upper(): no_state = False
         elif 'VBD' in x.label().upper(): no_state = False
       else:
+<<<<<<< HEAD
         if x[1] == 'VBZ': no_state = False
         elif x[1] == 'VBN': no_state = False
         elif x[1] == 'VBG': no_state = False
         elif x[1] == 'VBD': no_state = False    
+=======
+        if x[1] == 'VBZ': no_state = True
+        elif x[1] == 'VBN': no_state = True
+        elif x[1] == 'VBG': no_state = True
+        elif x[1] == 'VBD': no_state = True
+>>>>>>> integration
     return no_state
 
   def dynamic_verb_rule(criteria, kind):
@@ -748,6 +756,36 @@ class AnalyzerCriteria:
         elif x[1] == 'VBP': no_action = False
     return no_action
 
+
+  def semantic_similarity(word):
+    w1=""
+    w2=""
+    is_similar = False
+    output_list = ['output','outcome','report','interface','message', 'email']
+    for x in output_list:
+        w1 = wordnet.synset(x+'.n.01')
+        w2 = wordnet.synset(word+'.n.01')
+        if w1.wup_similarity(w2) > 0.9: is_similar = True
+    return is_similar
+
+
+  def output_rule(criteria, kind):
+    if not criteria.then == None:
+      result = AnalyzerCriteria.content_chunk(criteria.then.upper(), kind)
+      output = False
+      noun_list=['NN','NNS']
+      for x in result:
+        try:
+          if hasattr(x, 'label'):
+            if len(x[0][0][1]) > 1:
+              if x[0][0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+            else:
+              if x[0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+          else:
+            if x[1].upper() in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+        except IndexError as e:
+          if x[0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+      return output
 
   def identical_rule(criteria, cascade):
     identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
@@ -1160,7 +1198,7 @@ class StoryChunker:
     result = False
     detected_indicators = ['']
     for indicator_phrase in eval(indicator_type.upper() + '_INDICATORS'):
-      if re.compile('(%s)' % indicator_phrase.lower()).search(text.lower()): 
+      if re.compile('(%s)' % indicator_phrase.lower()).search(text.lower()):
         result = True
         detected_indicators.append(indicator_phrase.replace('^', ''))
     return (result, max(detected_indicators, key=len))
@@ -1189,7 +1227,7 @@ class StoryChunker:
       if type(leaf) is not tuple:
         if leaf[0][0] == 'I':
           break
-        elif leaf.label() == 'NP': 
+        elif leaf.label() == 'NP':
           return_string.append(leaf[0][0])
         else:
           break
@@ -1222,7 +1260,7 @@ class CorrectError:
 
   def correct_no_means_comma(error):
     story = error.story
-    story.text = story.role + ', ' + story.means 
+    story.text = story.role + ', ' + story.means
     if story.ends: story.text = story.text + ' ' + story.ends
     story.save()
     return story
