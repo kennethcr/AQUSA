@@ -493,7 +493,7 @@ ERROR_KINDS_CRITERIA = { 'well_formed_content': [
                   { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'stative_verb', 'rule':'AnalyzerCriteria.stative_verb_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'dynamic_verb', 'rule':'AnalyzerCriteria.dynamic_verb_rule(criteria,"when")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, WHEN_INDICATORS, 'high')"},
-                  { 'subkind':'output', 'rule':'AnalyzerCriteria.output_rule(criteria,"then")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, THEN_INDICATORS, 'high')"},
+                  { 'subkind':'output', 'rule':'AnalyzerCriteria.output_rule(criteria,"then")', 'severity':'medium', 'highlight':"AnalyzerCriteria.highlight_text(criteria, THEN_INDICATORS, 'medium')"},
                 ],
                 'unique': [
                   { 'subkind':'identical_criteria', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate acceptance criteria")' }
@@ -726,17 +726,10 @@ class AnalyzerCriteria:
         elif 'VBG' in x.label().upper(): no_state = False
         elif 'VBD' in x.label().upper(): no_state = False
       else:
-<<<<<<< HEAD
         if x[1] == 'VBZ': no_state = False
         elif x[1] == 'VBN': no_state = False
         elif x[1] == 'VBG': no_state = False
-        elif x[1] == 'VBD': no_state = False    
-=======
-        if x[1] == 'VBZ': no_state = True
-        elif x[1] == 'VBN': no_state = True
-        elif x[1] == 'VBG': no_state = True
-        elif x[1] == 'VBD': no_state = True
->>>>>>> integration
+        elif x[1] == 'VBD': no_state = False
     return no_state
 
   def dynamic_verb_rule(criteria, kind):
@@ -760,32 +753,36 @@ class AnalyzerCriteria:
   def semantic_similarity(word):
     w1=""
     w2=""
-    is_similar = False
+    is_similar = True
     output_list = ['output','outcome','report','interface','message', 'email']
     for x in output_list:
         w1 = wordnet.synset(x+'.n.01')
-        w2 = wordnet.synset(word+'.n.01')
-        if w1.wup_similarity(w2) > 0.9: is_similar = True
+        w2 = wordnet.synset(word[0]+'.n.01')
+        print(w1)
+        print(w2)
+        print(w1.wup_similarity(w2))
+        if w1.wup_similarity(w2) > 0.9: is_similar = False
     return is_similar
 
 
   def output_rule(criteria, kind):
     if not criteria.then == None:
-      result = AnalyzerCriteria.content_chunk(criteria.then.upper(), kind)
-      output = False
+      then_cleaned = AnalyzerCriteria.clean_component(criteria.then.upper())
+      result = AnalyzerCriteria.content_chunk(then_cleaned, kind)
+      no_output = True
       noun_list=['NN','NNS']
       for x in result:
         try:
           if hasattr(x, 'label'):
             if len(x[0][0][1]) > 1:
-              if x[0][0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+              if x[0][0][1] in noun_list: no_output = AnalyzerCriteria.semantic_similarity(x[0])
             else:
-              if x[0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+              if x[0][1] in noun_list: no_output = AnalyzerCriteria.semantic_similarity(x[0])
           else:
-            if x[1].upper() in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
+            if x[1].upper() in noun_list: no_output = AnalyzerCriteria.semantic_similarity(x[0])
         except IndexError as e:
-          if x[0][1] in noun_list: AnalyzerCriteria.semantic_similarity(x[0])
-      return output
+          if x[0][1] in noun_list:no_output = AnalyzerCriteria.semantic_similarity(x[0])
+      return no_output
 
   def identical_rule(criteria, cascade):
     identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
