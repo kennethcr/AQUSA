@@ -134,9 +134,9 @@ msgid "verifiable_dynamic_verb_explanation"
 msgstr "The purpose of When steps is to describe the key action the user performs, for this to be a transition it needs a dynamic verb"
 
 msgid "verifiable_output"
-msgstr "The Then should provide an output"
+msgstr "The Then should provide a clear output"
 
-msgid "verifiable_output"
+msgid "verifiable_output_explanation"
 msgstr "The purpose of Then steps is to observe outcomes, the observations should also be on some kind of output – that is something that comes out of the system (report, user interface, message)"
 
 msgid "verifiable_title"

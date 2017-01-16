@@ -645,7 +645,6 @@ class Analyzer:
 
 class AnalyzerCriteria:
   def atomic(criteria):
-    #Atomicity for AC is only analyzed in the "when", first for conjunctions and then for different actions amongst scenarios
     for chunk in ['"when"']:
       AnalyzerCriteria.generate_errors('atomic', criteria, chunk=chunk)
     return criteria
@@ -720,16 +719,32 @@ class AnalyzerCriteria:
     result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
     no_state = True
     for x in result:
-      if hasattr(x, 'label'):
-        if 'VBZ' in x.label().upper(): no_state = False
-        elif 'VBN' in x.label().upper(): no_state = False
-        elif 'VBG' in x.label().upper(): no_state = False
-        elif 'VBD' in x.label().upper(): no_state = False
-      else:
-        if x[1] == 'VBZ': no_state = False
-        elif x[1] == 'VBN': no_state = False
-        elif x[1] == 'VBG': no_state = False
-        elif x[1] == 'VBD': no_state = False
+      try:
+        if hasattr(x, 'label'):
+          if len(x[0][0][1]) > 1:
+            if 'VB' == x[0][0][1]: no_state = False
+            elif 'VBZ' == x[0][0][1]: no_state = False
+            elif 'VBN' == x[0][0][1]: no_state = False
+            elif 'VBG' == x[0][0][1]: no_state = False
+            elif 'VBD' == x[0][0][1]: no_state = False
+          else:
+            if 'VB' == x[0][1]: no_state = False
+            elif 'VBZ' == x[0][1]: no_state = False
+            elif 'VBN' == x[0][1]: no_state = False
+            elif 'VBG' == x[0][1]: no_state = False
+            elif 'VBD' == x[0][1]: no_state = False
+        else:
+          if 'VB' == x[1].upper(): no_state = False
+          elif 'VBZ' == x[1].upper(): no_state = False
+          elif 'VBN' == x[1].upper(): no_state = False
+          elif 'VBG' == x[1].upper(): no_state = False
+          elif 'VBD' == x[1].upper(): no_state = False
+      except IndexError as e:
+        if 'VB' == x[0][1]: no_state = False
+        elif 'VBZ' == x[0][1]: no_state = False
+        elif 'VBN' == x[0][1]: no_state = False
+        elif 'VBG' == x[0][1]: no_state = False
+        elif 'VBD' == x[0][1]: no_state = False
     return no_state
 
   def dynamic_verb_rule(criteria, kind):
@@ -737,16 +752,32 @@ class AnalyzerCriteria:
     result = AnalyzerCriteria.content_chunk(when_cleaned, kind)
     no_action = True
     for x in result:
-      if hasattr(x, 'label'):
-        if 'VB' in x.label().upper(): no_action = False
-        elif 'VBD' in x.label().upper(): no_action = False
-        elif 'VBN' in x.label().upper(): no_action = False
-        elif 'VBP' in x.label().upper(): no_action = False
-      else:
-        if x[1] == 'VB': no_action = False
-        elif x[1] == 'VBD': no_action = False
-        elif x[1] == 'VBN': no_action = False
-        elif x[1] == 'VBP': no_action = False
+      try:
+        if hasattr(x, 'label'):
+          if len(x[0][0][1]) > 1:
+            if 'VB' == x[0][0][1]: no_state = False
+            elif 'VBD' == x[0][0][1]: no_state = False
+            elif 'VBN' == x[0][0][1]: no_state = False
+            elif 'VBP' == x[0][0][1]: no_state = False
+            elif 'VBZ' == x[0][0][1]: no_state = False
+          else:
+            if 'VB' == x[0][1]: no_state = False
+            elif 'VBD' == x[0][1]: no_state = False
+            elif 'VBN' == x[0][1]: no_state = False
+            elif 'VBP' == x[0][1]: no_state = False
+            elif 'VBZ' == x[0][0][1]: no_state = False
+        else:
+          if 'VB' == x[1].upper(): no_state = False
+          elif 'VBD' == x[1].upper(): no_state = False
+          elif 'VBN' == x[1].upper(): no_state = False
+          elif 'VBP' == x[1].upper(): no_state = False
+          elif 'VBZ' == x[0][0][1]: no_state = False
+      except IndexError as e:
+        if 'VB' == x[0][1]: no_state = False
+        elif 'VBD' == x[0][1]: no_state = False
+        elif 'VBN' == x[0][1]: no_state = False
+        elif 'VBP' == x[0][1]: no_state = False
+        elif 'VBZ' == x[0][0][1]: no_state = False
     return no_action
 
 
@@ -754,14 +785,14 @@ class AnalyzerCriteria:
     w1=""
     w2=""
     is_similar = True
-    output_list = ['output','outcome','report','interface','message', 'email']
+    output_list = ['output','outcome','report','interface','message', 'email', 'screen', 'window', 'show', 'content', 'result' ]
     for x in output_list:
         w1 = wordnet.synset(x+'.n.01')
         w2 = wordnet.synset(word[0]+'.n.01')
-        print(w1)
-        print(w2)
-        print(w1.wup_similarity(w2))
-        if w1.wup_similarity(w2) > 0.9: is_similar = False
+        #print(w1)
+        #print(w2)
+        #print(w1.wup_similarity(w2))
+        if w1.wup_similarity(w2) > 0.34: is_similar = False
     return is_similar
 
 
@@ -785,7 +816,7 @@ class AnalyzerCriteria:
       return no_output
 
   def identical_rule(criteria, cascade):
-    identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
+    identical_stories = Criteria.query.filter((Criteria.text==criteria.text) & (Criteria.story_id == int(criteria.story_id))).all()
     identical_stories.remove(criteria)
     if cascade:
       for criteria in identical_stories:
