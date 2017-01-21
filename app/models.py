@@ -11,7 +11,8 @@ import nltk.metrics.distance
 import pandas
 import operator
 from collections import Counter
-# Classes: Story, Error, Project  
+from nltk.corpus import wordnet
+# Classes: Story, Error, Project
 
 class Story(db.Model):
   id = db.Column(db.Integer, primary_key=True)
@@ -194,11 +195,7 @@ class Title(db.Model):
     db.session.commit()
 
   def analyze(self):
-    WellFormedAnalyzerTitle.well_formed(self)
-    # Analyzer.atomic(self)
-    # Analyzer.unique(self, True)
-    # MinimalAnalyzer.minimal(self)
-    #Analyzer.uniform(self)
+    AnalyzerTitle.verifiable(self)
     self.remove_duplicates_of_false_positives()
     return self
 
@@ -243,7 +240,7 @@ class Project(db.Model):
 
   def delete(self):
     db.session.delete(self)
-    db.session.commit() 
+    db.session.commit()
 
   def save(self):
     db.session.add(self)
@@ -483,28 +480,33 @@ ERROR_KINDS = { 'well_formed_content': [
               }
 
 ERROR_KINDS_CRITERIA = { 'well_formed_content': [
-                  { 'subkind': 'when', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.when, "when", ["when"])', 'severity':'medium', 'highlight':'str("Make sure the means includes a verb and a noun. Our analysis shows the means currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.when, "when")'},
-                  { 'subkind': 'given', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "role", ["NP"])', 'severity':'medium', 'highlight':'str("Make sure the role includes a person noun. Our analysis shows the role currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "given")'},
+                  { 'subkind': 'when', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.when, "when", ["when"])', 'severity':'medium', 'highlight':'str(Make sure the acceptance criteria contains an action/transition state. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.when, "when")'},
+                  { 'subkind': 'given', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.given, "given", ["given"])', 'severity':'medium', 'highlight':'str("Make sure the given represents a state. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "given")'},
+                  { 'subkind': 'then', 'rule': 'AnalyzerCriteria.well_formed_content_rule(criteria.then, "then", ["then"])', 'severity':'medium', 'highlight':'str("Make sure the acceptance criteria represents the desired outcome. Our analysis shows it currently includes: ") + AnalyzerCriteria.well_formed_content_highlight(criteria.given, "then")'},
                 ],
 
                 'atomic': [
-                  { 'subkind':'conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
-                  { 'subkind':'one_feature', 'rule':"AnalyzerCriteria.atomic_one_feature_rule(criteria)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"}
+                  { 'subkind':'criteria_conjunctions', 'rule':"AnalyzerCriteria.atomic_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  { 'subkind':'one_feature', 'rule':"AnalyzerCriteria.atomic_one_feature_rule(criteria)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, WHEN_INDICATORS, 'high')"}
                 ],
                 'verifiable':[
                   { 'subkind':'user_interaction', 'rule':'AnalyzerCriteria.user_interaction_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'stative_verb', 'rule':'AnalyzerCriteria.stative_verb_rule(criteria,"given")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, GIVEN_INDICATORS, 'high')"},
                   { 'subkind':'dynamic_verb', 'rule':'AnalyzerCriteria.dynamic_verb_rule(criteria,"when")', 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, WHEN_INDICATORS, 'high')"},
-                  # { 'subkind':'output_rule', 'rule':"AnalyzerCriteria.verifiable_rule(getattr(criteria,chunk), chunk)", 'severity':'high', 'highlight':"AnalyzerCriteria.highlight_text(criteria, CONJUNCTIONS, 'high')"},
+                  { 'subkind':'output', 'rule':'AnalyzerCriteria.output_rule(criteria,"then")', 'severity':'medium', 'highlight':"AnalyzerCriteria.highlight_text(criteria, THEN_INDICATORS, 'medium')"},
                 ],
                 'unique': [
-                  { 'subkind':'identical', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate user stories")' }
+                  { 'subkind':'identical_criteria', 'rule':"AnalyzerCriteria.identical_rule(criteria, cascade)", 'severity':'high', 'highlight':'str("Remove all duplicate acceptance criteria")' }
                 ],
                 'uniform': [
-                  { 'subkind':'uniform', 'rule':"AnalyzerCriteria.uniform_rule(criteria)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % criteria.format'}
+                  { 'subkind':'uniform_criteria', 'rule':"AnalyzerCriteria.uniform_rule(criteria)", 'severity':'medium', 'highlight':'"Use the most common template: %s" % criteria.format'}
                 ],
               }
 
+ERROR_KINDS_TITLE = { 'verifiable':[
+                  { 'subkind':'title', 'rule':'AnalyzerTitle.verifiable_rule(title)', 'severity':'high', 'highlight':"AnalyzerTitle.highlight_text(title,'high')"}
+                ],
+              }
 
 CHUNK_GRAMMAR = """
       NP: {<DT|JJ|NN.*>}
@@ -523,7 +525,13 @@ CHUNK_GRAMMAR_CRITERIA = """
       WHEN: {<AP>?<VP>}
       THEN: {<AP>?<VP>}
     """
-
+CHUNK_GRAMMAR_TITLE = """
+      NP: {<DT|JJ|NN.*>}
+      NNP: {<NNP.*>}
+      AP: {<RB.*|JJ.*>}
+      VP: {<VB.*><NP>*}
+      TITLE: {<AP>?<VP>}
+    """
 class Analyzer:
   def atomic(story):
     for chunk in ['"role"', '"means"', '"ends"']:
@@ -637,7 +645,6 @@ class Analyzer:
 
 class AnalyzerCriteria:
   def atomic(criteria):
-    #Atomicity for AC is only analyzed in the "when", first for conjunctions and then for different actions amongst scenarios
     for chunk in ['"when"']:
       AnalyzerCriteria.generate_errors('atomic', criteria, chunk=chunk)
     return criteria
@@ -693,7 +700,8 @@ class AnalyzerCriteria:
       return False
 
   def user_interaction_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.given.upper(), kind)
+    given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
+    result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
     no_interaction = False
     for x in result:
       if hasattr(x, 'label'):
@@ -707,40 +715,108 @@ class AnalyzerCriteria:
     return no_interaction
 
   def stative_verb_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.given.upper(), kind)
-    no_state = False
+    given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
+    result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
+    no_state = True
     for x in result:
-      if hasattr(x, 'label'):
-        if 'VBZ' in x.label().upper(): no_state = True
-        elif 'VBN' in x.label().upper(): no_state = True
-        elif 'VBG' in x.label().upper(): no_state = True
-        elif 'VBD' in x.label().upper(): no_state = True
-      else:
-        if x[1] == 'VBZ': no_state = True
-        elif x[1] == 'VBN': no_state = True
-        elif x[1] == 'VBG': no_state = True
-        elif x[1] == 'VBD': no_state = True    
+      try:
+        if hasattr(x, 'label'):
+          if len(x[0][0][1]) > 1:
+            if 'VB' == x[0][0][1]: no_state = False
+            elif 'VBZ' == x[0][0][1]: no_state = False
+            elif 'VBN' == x[0][0][1]: no_state = False
+            elif 'VBG' == x[0][0][1]: no_state = False
+            elif 'VBD' == x[0][0][1]: no_state = False
+          else:
+            if 'VB' == x[0][1]: no_state = False
+            elif 'VBZ' == x[0][1]: no_state = False
+            elif 'VBN' == x[0][1]: no_state = False
+            elif 'VBG' == x[0][1]: no_state = False
+            elif 'VBD' == x[0][1]: no_state = False
+        else:
+          if 'VB' == x[1].upper(): no_state = False
+          elif 'VBZ' == x[1].upper(): no_state = False
+          elif 'VBN' == x[1].upper(): no_state = False
+          elif 'VBG' == x[1].upper(): no_state = False
+          elif 'VBD' == x[1].upper(): no_state = False
+      except IndexError as e:
+        if 'VB' == x[0][1]: no_state = False
+        elif 'VBZ' == x[0][1]: no_state = False
+        elif 'VBN' == x[0][1]: no_state = False
+        elif 'VBG' == x[0][1]: no_state = False
+        elif 'VBD' == x[0][1]: no_state = False
     return no_state
 
   def dynamic_verb_rule(criteria, kind):
-    result = AnalyzerCriteria.content_chunk(criteria.when, kind)
-    no_action = False
+    when_cleaned = AnalyzerCriteria.clean_component(criteria.when.upper())
+    result = AnalyzerCriteria.content_chunk(when_cleaned, kind)
+    no_action = True
     for x in result:
-      if hasattr(x, 'label'):
-        if 'VB' in x.label().upper(): no_action = True
-        elif 'VBD' in x.label().upper(): no_action = True
-        elif 'VBN' in x.label().upper(): no_action = True
-        elif 'VBP' in x.label().upper(): no_action = True
-      else:
-        if x[1] == 'VB': no_action = True
-        elif x[1] == 'VBD': no_action = True
-        elif x[1] == 'VBN': no_action = True
-        elif x[1] == 'VBP': no_action = True
+      try:
+        if hasattr(x, 'label'):
+          if len(x[0][0][1]) > 1:
+            if 'VB' == x[0][0][1]: no_state = False
+            elif 'VBD' == x[0][0][1]: no_state = False
+            elif 'VBN' == x[0][0][1]: no_state = False
+            elif 'VBP' == x[0][0][1]: no_state = False
+            elif 'VBZ' == x[0][0][1]: no_state = False
+          else:
+            if 'VB' == x[0][1]: no_state = False
+            elif 'VBD' == x[0][1]: no_state = False
+            elif 'VBN' == x[0][1]: no_state = False
+            elif 'VBP' == x[0][1]: no_state = False
+            elif 'VBZ' == x[0][0][1]: no_state = False
+        else:
+          if 'VB' == x[1].upper(): no_state = False
+          elif 'VBD' == x[1].upper(): no_state = False
+          elif 'VBN' == x[1].upper(): no_state = False
+          elif 'VBP' == x[1].upper(): no_state = False
+          elif 'VBZ' == x[0][0][1]: no_state = False
+      except IndexError as e:
+        if 'VB' == x[0][1]: no_state = False
+        elif 'VBD' == x[0][1]: no_state = False
+        elif 'VBN' == x[0][1]: no_state = False
+        elif 'VBP' == x[0][1]: no_state = False
+        elif 'VBZ' == x[0][0][1]: no_state = False
     return no_action
 
 
+  def semantic_similarity(word):
+    w1=""
+    w2=""
+    is_similar = True
+    output_list = ['output','outcome','report','interface','message', 'email', 'screen', 'window', 'show', 'content', 'result' ]
+    for x in output_list:
+        w1 = wordnet.synset(x+'.n.01')
+        w2 = wordnet.synset(word[0]+'.n.01')
+        #print(w1)
+        #print(w2)
+        #print(w1.wup_similarity(w2))
+        if w1.wup_similarity(w2) > 0.34: is_similar = False
+    return is_similar
+
+
+  def output_rule(criteria, kind):
+    if not criteria.then == None:
+      then_cleaned = AnalyzerCriteria.clean_component(criteria.then.upper())
+      result = AnalyzerCriteria.content_chunk(then_cleaned, kind)
+      no_output = True
+      noun_list=['NN','NNS']
+      for x in result:
+        try:
+          if hasattr(x, 'label'):
+            if len(x[0][0][1]) > 1:
+              if x[0][0][1] in noun_list: no_output = AnalyzerCriteria.semantic_similarity(x[0])
+            else:
+              if x[0][1] in noun_list: no_output = AnalyzerCriteria.semantic_similarity(x[0])
+          else:
+            if x[1].upper() in noun_list: no_output = AnalyzerCriteria.semantic_similarity(x[0])
+        except IndexError as e:
+          if x[0][1] in noun_list:no_output = AnalyzerCriteria.semantic_similarity(x[0])
+      return no_output
+
   def identical_rule(criteria, cascade):
-    identical_stories = criteria.query.filter((criteria.text==criteria.text) & (criteria.story_id == int(criteria.story_id))).all()
+    identical_stories = Criteria.query.filter((Criteria.text==criteria.text) & (Criteria.story_id == int(criteria.story_id))).all()
     identical_stories.remove(criteria)
     if cascade:
       for criteria in identical_stories:
@@ -805,6 +881,81 @@ class AnalyzerCriteria:
         indicator_words = nltk.word_tokenize(indicator)
         pos_text = [x for x in pos_text if x[0] not in indicator_words]
     return pos_text
+
+  def clean_component(component):
+    component = component.replace('\r', '')
+    component = component.replace('\n', '')
+    return component
+
+class AnalyzerTitle:
+
+  def verifiable(title):
+    AnalyzerTitle.generate_errors('verifiable', title)
+    return title
+
+  def generate_errors(kind, title, **kwargs):
+    for kwarg in kwargs:
+      exec(kwarg+'='+ str(kwargs[kwarg]))
+    for error_type in ERROR_KINDS_TITLE[kind]:
+      if eval(error_type['rule']):
+        ErrorTitle.create_unless_duplicate(eval(error_type['highlight']), kind, error_type['subkind'], error_type['severity'], title)
+
+  def inject_text(text, severity='medium'):
+    return "<span class='highlight-text severity-" + severity + "'>%s</span>" % text
+
+  def verifiable_rule(title):
+    result = AnalyzerTitle.content_chunk(title.text)
+    not_verifiable = True
+    for x in result:
+      try:
+        if hasattr(x, 'label'):
+          if len(x[0][0][1]) > 1:
+            if 'VB' == x[0][0][1]: not_verifiable = False
+            elif 'VBZ' == x[0][0][1]: not_verifiable = False
+            elif 'VBN' == x[0][0][1]: not_verifiable = False
+            elif 'VBG' == x[0][0][1]: not_verifiable = False
+            elif 'VBD' == x[0][0][1]: not_verifiable = False
+            elif 'VBP' == x[0][0][1]: not_verifiable = False
+          else:
+            if 'VB' == x[0][1]: not_verifiable = False
+            elif 'VBZ' == x[0][1]: not_verifiable = False
+            elif 'VBN' == x[0][1]: not_verifiable = False
+            elif 'VBG' == x[0][1]: not_verifiable = False
+            elif 'VBD' == x[0][1]: not_verifiable = False
+            elif 'VBP' == x[0][1]: not_verifiable = False
+        else:
+          if 'VB' == x[1].upper(): not_verifiable = False
+          elif 'VBZ' == x[1].upper(): not_verifiable = False
+          elif 'VBN' == x[1].upper(): not_verifiable = False
+          elif 'VBG' == x[1].upper(): not_verifiable = False
+          elif 'VBD' == x[1].upper(): not_verifiable = False
+          elif 'VBP' == x[1].upper(): not_verifiable = False
+      except IndexError as e:
+        if 'VB' == x[0][1]: not_verifiable = False
+        elif 'VBZ' == x[0][1]: not_verifiable = False
+        elif 'VBN' == x[0][1]: not_verifiable = False
+        elif 'VBG' == x[0][1]: not_verifiable = False
+        elif 'VBD' == x[0][1]: not_verifiable = False
+        elif 'VBP' == x[0][1]: not_verifiable = False
+    return not_verifiable
+
+
+  def highlight_text(title, severity):
+    highlighted_text = title.text
+    #indices = []
+    #for word in word_array:
+    #  if word in title.text.lower(): indices += [ [title.text.index(word), word] ]
+    #indices.sort(reverse=True)
+    #for index, word in indices:
+    #  highlighted_text = highlighted_text[:index] + "<span class='highlight-text severity-" + severity + "'>" + word + "</span>" + highlighted_text[index+len(word):]
+    return highlighted_text
+
+  def content_chunk(chunk):
+    sentence = AQUSATagger.parse(chunk)[0]
+    # sentence = AnalyzerTitle.strip_indicators_pos(chunk, sentence, kind)
+    cp = nltk.RegexpParser(CHUNK_GRAMMAR_TITLE)
+    result = cp.parse(sentence)
+    return result
 
 class WellFormedAnalyzer:
   def well_formed(story):
@@ -1075,7 +1226,7 @@ class StoryChunker:
     result = False
     detected_indicators = ['']
     for indicator_phrase in eval(indicator_type.upper() + '_INDICATORS'):
-      if re.compile('(%s)' % indicator_phrase.lower()).search(text.lower()): 
+      if re.compile('(%s)' % indicator_phrase.lower()).search(text.lower()):
         result = True
         detected_indicators.append(indicator_phrase.replace('^', ''))
     return (result, max(detected_indicators, key=len))
@@ -1104,7 +1255,7 @@ class StoryChunker:
       if type(leaf) is not tuple:
         if leaf[0][0] == 'I':
           break
-        elif leaf.label() == 'NP': 
+        elif leaf.label() == 'NP':
           return_string.append(leaf[0][0])
         else:
           break
@@ -1137,7 +1288,7 @@ class CorrectError:
 
   def correct_no_means_comma(error):
     story = error.story
-    story.text = story.role + ', ' + story.means 
+    story.text = story.role + ', ' + story.means
     if story.ends: story.text = story.text + ' ' + story.ends
     story.save()
     return story

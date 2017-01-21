@@ -102,3 +102,60 @@ msgstr "Irregular format"
 
 msgid "uniform_uniform_explanation"
 msgstr "This user story its format deviates from the format used by the majority of your user stories"
+
+msgid "atomic_one_feature"
+msgstr "Acceptance criteria not atomic"
+
+msgid "atomic_one_feature_explanation"
+msgstr "The scenarios for a story should revolve around single event. One or more scenarios in this acceptance criteria are different"
+
+msgid "atomic_criteria_conjunctions"
+msgstr "Acceptance criteria not atomic"
+
+msgid "atomic_criteria_conjunctions_explanation"
+msgstr "The scenario should be composed by one single event, consider if this story should be split"
+
+msgid "verifiable_user_interaction"
+msgstr "User interaction in given"
+
+msgid "verifiable_user_interaction_explanation"
+msgstr "Avoid talking about user interaction in givens, this is a state and it should provide only the necessary context for the scenario"
+
+msgid "verifiable_stative_verb"
+msgstr "Given should be a state"
+
+msgid "verifiable_stative_verb_explanation"
+msgstr "There is a stative verb missing in the given, either add one or avoid describing any action"
+
+msgid "verifiable_dynamic_verb"
+msgstr "No dynamic verb was found in When"
+
+msgid "verifiable_dynamic_verb_explanation"
+msgstr "The purpose of When steps is to describe the key action the user performs, for this to be a transition it needs a dynamic verb"
+
+msgid "verifiable_output"
+msgstr "The Then should provide a clear output"
+
+msgid "verifiable_output_explanation"
+msgstr "The purpose of Then steps is to observe outcomes, the observations should also be on some kind of output – that is something that comes out of the system (report, user interface, message)"
+
+msgid "verifiable_title"
+msgstr "No verb found in title"
+
+msgid "verifiable_title_explanation"
+msgstr "The title should describe an activity"
+
+msgid "unique_identical_criteria"
+msgstr "Duplicated acceptance criteria"
+
+msgid "unique_identical_criteria_explanation"
+msgstr "Acceptance criteria should not be identical to one another"
+
+msgid "uniform_uniform_criteria"
+msgstr "Irregular Format"
+
+msgid "uniform_uniform_criteria_explanation"
+msgstr "This acceptance criteria format deviates from the format used by the majority of your user stories"
+
+
+
