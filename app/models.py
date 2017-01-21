@@ -765,19 +765,19 @@ class AnalyzerCriteria:
             elif 'VBD' == x[0][1]: no_state = False
             elif 'VBN' == x[0][1]: no_state = False
             elif 'VBP' == x[0][1]: no_state = False
-            elif 'VBZ' == x[0][0][1]: no_state = False
+            elif 'VBZ' == x[0][0]: no_state = False
         else:
           if 'VB' == x[1].upper(): no_state = False
           elif 'VBD' == x[1].upper(): no_state = False
           elif 'VBN' == x[1].upper(): no_state = False
           elif 'VBP' == x[1].upper(): no_state = False
-          elif 'VBZ' == x[0][0][1]: no_state = False
+          elif 'VBZ' == x[1].upper(): no_state = False
       except IndexError as e:
         if 'VB' == x[0][1]: no_state = False
         elif 'VBD' == x[0][1]: no_state = False
         elif 'VBN' == x[0][1]: no_state = False
         elif 'VBP' == x[0][1]: no_state = False
-        elif 'VBZ' == x[0][0][1]: no_state = False
+        elif 'VBZ' == x[0][0]: no_state = False
     return no_action
 
 
@@ -789,9 +789,6 @@ class AnalyzerCriteria:
     for x in output_list:
         w1 = wordnet.synset(x+'.n.01')
         w2 = wordnet.synset(word[0]+'.n.01')
-        #print(w1)
-        #print(w2)
-        #print(w1.wup_similarity(w2))
         if w1.wup_similarity(w2) > 0.34: is_similar = False
     return is_similar
 
