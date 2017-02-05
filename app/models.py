@@ -700,84 +700,93 @@ class AnalyzerCriteria:
       return False
 
   def user_interaction_rule(criteria, kind):
-    given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
-    result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
-    no_interaction = False
-    for x in result:
-      if hasattr(x, 'label'):
-        if 'PRP' in x.label().upper(): no_interaction = True
-        elif 'NNP' in x.label().upper(): no_interaction = True
-        elif 'NNPS' in x.label().upper(): no_interaction = True
-      else:
-        if x[1] == 'PRP': no_interaction = True
-        elif x[1] == 'NNP': no_interaction = True
-        elif x[1] == 'NNPS': no_interaction = True
-    return no_interaction
+    try:
+      given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
+      result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
+      no_interaction = False
+      for x in result:
+        if hasattr(x, 'label'):
+          if 'PRP' in x.label().upper(): no_interaction = True
+          elif 'NNP' in x.label().upper(): no_interaction = True
+          elif 'NNPS' in x.label().upper(): no_interaction = True
+        else:
+          if x[1] == 'PRP': no_interaction = True
+          elif x[1] == 'NNP': no_interaction = True
+          elif x[1] == 'NNPS': no_interaction = True
+      return no_interaction
+    except:
+      return False
+
 
   def stative_verb_rule(criteria, kind):
-    given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
-    result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
-    no_state = True
-    for x in result:
-      try:
-        if hasattr(x, 'label'):
-          if len(x[0][0][1]) > 1:
-            if 'VB' == x[0][0][1]: no_state = False
-            elif 'VBZ' == x[0][0][1]: no_state = False
-            elif 'VBN' == x[0][0][1]: no_state = False
-            elif 'VBG' == x[0][0][1]: no_state = False
-            elif 'VBD' == x[0][0][1]: no_state = False
+    try:
+      given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
+      result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
+      no_state = True
+      for x in result:
+        try:
+          if hasattr(x, 'label'):
+            if len(x[0][0][1]) > 1:
+              if 'VB' == x[0][0][1]: no_state = False
+              elif 'VBZ' == x[0][0][1]: no_state = False
+              elif 'VBN' == x[0][0][1]: no_state = False
+              elif 'VBG' == x[0][0][1]: no_state = False
+              elif 'VBD' == x[0][0][1]: no_state = False
+            else:
+              if 'VB' == x[0][1]: no_state = False
+              elif 'VBZ' == x[0][1]: no_state = False
+              elif 'VBN' == x[0][1]: no_state = False
+              elif 'VBG' == x[0][1]: no_state = False
+              elif 'VBD' == x[0][1]: no_state = False
           else:
-            if 'VB' == x[0][1]: no_state = False
-            elif 'VBZ' == x[0][1]: no_state = False
-            elif 'VBN' == x[0][1]: no_state = False
-            elif 'VBG' == x[0][1]: no_state = False
-            elif 'VBD' == x[0][1]: no_state = False
-        else:
-          if 'VB' == x[1].upper(): no_state = False
-          elif 'VBZ' == x[1].upper(): no_state = False
-          elif 'VBN' == x[1].upper(): no_state = False
-          elif 'VBG' == x[1].upper(): no_state = False
-          elif 'VBD' == x[1].upper(): no_state = False
-      except IndexError as e:
-        if 'VB' == x[0][1]: no_state = False
-        elif 'VBZ' == x[0][1]: no_state = False
-        elif 'VBN' == x[0][1]: no_state = False
-        elif 'VBG' == x[0][1]: no_state = False
-        elif 'VBD' == x[0][1]: no_state = False
-    return no_state
+            if 'VB' == x[1].upper(): no_state = False
+            elif 'VBZ' == x[1].upper(): no_state = False
+            elif 'VBN' == x[1].upper(): no_state = False
+            elif 'VBG' == x[1].upper(): no_state = False
+            elif 'VBD' == x[1].upper(): no_state = False
+        except IndexError as e:
+          if 'VB' == x[0][1]: no_state = False
+          elif 'VBZ' == x[0][1]: no_state = False
+          elif 'VBN' == x[0][1]: no_state = False
+          elif 'VBG' == x[0][1]: no_state = False
+          elif 'VBD' == x[0][1]: no_state = False
+      return no_state
+    except:
+      return True
+
 
   def dynamic_verb_rule(criteria, kind):
-    when_cleaned = AnalyzerCriteria.clean_component(criteria.when.upper())
-    result = AnalyzerCriteria.content_chunk(when_cleaned, kind)
     no_action = True
-    for x in result:
-      try:
-        if hasattr(x, 'label'):
-          if len(x[0][0][1]) > 1:
-            if 'VB' == x[0][0][1]: no_state = False
-            elif 'VBD' == x[0][0][1]: no_state = False
-            elif 'VBN' == x[0][0][1]: no_state = False
-            elif 'VBP' == x[0][0][1]: no_state = False
-            elif 'VBZ' == x[0][0][1]: no_state = False
+    if criteria.when is not None:
+      when_cleaned = AnalyzerCriteria.clean_component(criteria.when.upper())
+      result = AnalyzerCriteria.content_chunk(when_cleaned, kind)
+      for x in result:
+        try:
+          if hasattr(x, 'label'):
+            if len(x[0][0][1]) > 1:
+              if 'VB' == x[0][0][1]: no_state = False
+              elif 'VBD' == x[0][0][1]: no_state = False
+              elif 'VBN' == x[0][0][1]: no_state = False
+              elif 'VBP' == x[0][0][1]: no_state = False
+              elif 'VBZ' == x[0][0][1]: no_state = False
+            else:
+              if 'VB' == x[0][1]: no_state = False
+              elif 'VBD' == x[0][1]: no_state = False
+              elif 'VBN' == x[0][1]: no_state = False
+              elif 'VBP' == x[0][1]: no_state = False
+              elif 'VBZ' == x[0][0]: no_state = False
           else:
-            if 'VB' == x[0][1]: no_state = False
-            elif 'VBD' == x[0][1]: no_state = False
-            elif 'VBN' == x[0][1]: no_state = False
-            elif 'VBP' == x[0][1]: no_state = False
-            elif 'VBZ' == x[0][0]: no_state = False
-        else:
-          if 'VB' == x[1].upper(): no_state = False
-          elif 'VBD' == x[1].upper(): no_state = False
-          elif 'VBN' == x[1].upper(): no_state = False
-          elif 'VBP' == x[1].upper(): no_state = False
-          elif 'VBZ' == x[1].upper(): no_state = False
-      except IndexError as e:
-        if 'VB' == x[0][1]: no_state = False
-        elif 'VBD' == x[0][1]: no_state = False
-        elif 'VBN' == x[0][1]: no_state = False
-        elif 'VBP' == x[0][1]: no_state = False
-        elif 'VBZ' == x[0][0]: no_state = False
+            if 'VB' == x[1].upper(): no_state = False
+            elif 'VBD' == x[1].upper(): no_state = False
+            elif 'VBN' == x[1].upper(): no_state = False
+            elif 'VBP' == x[1].upper(): no_state = False
+            elif 'VBZ' == x[1].upper(): no_state = False
+        except IndexError as e:
+          if 'VB' == x[0][1]: no_state = False
+          elif 'VBD' == x[0][1]: no_state = False
+          elif 'VBN' == x[0][1]: no_state = False
+          elif 'VBP' == x[0][1]: no_state = False
+          elif 'VBZ' == x[0][0]: no_state = False
     return no_action
 
 
@@ -901,40 +910,44 @@ class AnalyzerTitle:
     return "<span class='highlight-text severity-" + severity + "'>%s</span>" % text
 
   def verifiable_rule(title):
-    result = AnalyzerTitle.content_chunk(title.text)
-    not_verifiable = True
-    for x in result:
-      try:
-        if hasattr(x, 'label'):
-          if len(x[0][0][1]) > 1:
-            if 'VB' == x[0][0][1]: not_verifiable = False
-            elif 'VBZ' == x[0][0][1]: not_verifiable = False
-            elif 'VBN' == x[0][0][1]: not_verifiable = False
-            elif 'VBG' == x[0][0][1]: not_verifiable = False
-            elif 'VBD' == x[0][0][1]: not_verifiable = False
-            elif 'VBP' == x[0][0][1]: not_verifiable = False
+    try:
+      result = AnalyzerTitle.content_chunk(title.text)
+      not_verifiable = True
+      for x in result:
+        try:
+          if hasattr(x, 'label'):
+            if len(x[0][0][1]) > 1:
+              if 'VB' == x[0][0][1]: not_verifiable = False
+              elif 'VBZ' == x[0][0][1]: not_verifiable = False
+              elif 'VBN' == x[0][0][1]: not_verifiable = False
+              elif 'VBG' == x[0][0][1]: not_verifiable = False
+              elif 'VBD' == x[0][0][1]: not_verifiable = False
+              elif 'VBP' == x[0][0][1]: not_verifiable = False
+            else:
+              if 'VB' == x[0][1]: not_verifiable = False
+              elif 'VBZ' == x[0][1]: not_verifiable = False
+              elif 'VBN' == x[0][1]: not_verifiable = False
+              elif 'VBG' == x[0][1]: not_verifiable = False
+              elif 'VBD' == x[0][1]: not_verifiable = False
+              elif 'VBP' == x[0][1]: not_verifiable = False
           else:
-            if 'VB' == x[0][1]: not_verifiable = False
-            elif 'VBZ' == x[0][1]: not_verifiable = False
-            elif 'VBN' == x[0][1]: not_verifiable = False
-            elif 'VBG' == x[0][1]: not_verifiable = False
-            elif 'VBD' == x[0][1]: not_verifiable = False
-            elif 'VBP' == x[0][1]: not_verifiable = False
-        else:
-          if 'VB' == x[1].upper(): not_verifiable = False
-          elif 'VBZ' == x[1].upper(): not_verifiable = False
-          elif 'VBN' == x[1].upper(): not_verifiable = False
-          elif 'VBG' == x[1].upper(): not_verifiable = False
-          elif 'VBD' == x[1].upper(): not_verifiable = False
-          elif 'VBP' == x[1].upper(): not_verifiable = False
-      except IndexError as e:
-        if 'VB' == x[0][1]: not_verifiable = False
-        elif 'VBZ' == x[0][1]: not_verifiable = False
-        elif 'VBN' == x[0][1]: not_verifiable = False
-        elif 'VBG' == x[0][1]: not_verifiable = False
-        elif 'VBD' == x[0][1]: not_verifiable = False
-        elif 'VBP' == x[0][1]: not_verifiable = False
-    return not_verifiable
+            if 'VB' == x[1].upper(): not_verifiable = False
+            elif 'VBZ' == x[1].upper(): not_verifiable = False
+            elif 'VBN' == x[1].upper(): not_verifiable = False
+            elif 'VBG' == x[1].upper(): not_verifiable = False
+            elif 'VBD' == x[1].upper(): not_verifiable = False
+            elif 'VBP' == x[1].upper(): not_verifiable = False
+        except IndexError as e:
+          if 'VB' == x[0][1]: not_verifiable = False
+          elif 'VBZ' == x[0][1]: not_verifiable = False
+          elif 'VBN' == x[0][1]: not_verifiable = False
+          elif 'VBG' == x[0][1]: not_verifiable = False
+          elif 'VBD' == x[0][1]: not_verifiable = False
+          elif 'VBP' == x[0][1]: not_verifiable = False
+      return not_verifiable
+    except:
+      return True
+
 
 
   def highlight_text(title, severity):
@@ -948,11 +961,14 @@ class AnalyzerTitle:
     return highlighted_text
 
   def content_chunk(chunk):
-    sentence = AQUSATagger.parse(chunk)[0]
-    # sentence = AnalyzerTitle.strip_indicators_pos(chunk, sentence, kind)
-    cp = nltk.RegexpParser(CHUNK_GRAMMAR_TITLE)
-    result = cp.parse(sentence)
-    return result
+    try:
+      sentence = AQUSATagger.parse(chunk)[0]
+      # sentence = AnalyzerTitle.strip_indicators_pos(chunk, sentence, kind)
+      cp = nltk.RegexpParser(CHUNK_GRAMMAR_TITLE)
+      result = cp.parse(sentence)
+      return result
+    except:
+      return None
 
 class WellFormedAnalyzer:
   def well_formed(story):
