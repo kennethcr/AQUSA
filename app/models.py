@@ -10,6 +10,8 @@ import nltk
 import nltk.metrics.distance
 import pandas
 import operator
+#import sys
+#sys.setdefaultencoding('utf-8')
 from collections import Counter
 from nltk.corpus import wordnet
 # Classes: Story, Error, Project
@@ -738,6 +740,7 @@ class AnalyzerCriteria:
               elif 'VBN' == x[0][1]: no_state = False
               elif 'VBG' == x[0][1]: no_state = False
               elif 'VBD' == x[0][1]: no_state = False
+
           else:
             if 'VB' == x[1].upper(): no_state = False
             elif 'VBZ' == x[1].upper(): no_state = False
