@@ -10,6 +10,8 @@ import nltk
 import nltk.metrics.distance
 import pandas
 import operator
+#import sys
+#sys.setdefaultencoding('utf-8')
 from collections import Counter
 from nltk.corpus import wordnet
 # Classes: Story, Error, Project
@@ -700,6 +702,7 @@ class AnalyzerCriteria:
       return False
 
   def user_interaction_rule(criteria, kind):
+    if not criteria.given: return False
     given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
     result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
     no_interaction = False
@@ -715,6 +718,7 @@ class AnalyzerCriteria:
     return no_interaction
 
   def stative_verb_rule(criteria, kind):
+    if not criteria.given: return False
     given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
     result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
     no_state = True
@@ -748,6 +752,7 @@ class AnalyzerCriteria:
     return no_state
 
   def dynamic_verb_rule(criteria, kind):
+    if not criteria.when: return False
     when_cleaned = AnalyzerCriteria.clean_component(criteria.when.upper())
     result = AnalyzerCriteria.content_chunk(when_cleaned, kind)
     no_action = True
