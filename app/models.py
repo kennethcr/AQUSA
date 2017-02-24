@@ -14,6 +14,7 @@ import operator
 #sys.setdefaultencoding('utf-8')
 from collections import Counter
 from nltk.corpus import wordnet
+from nltk.corpus.reader.wordnet import WordNetError
 # Classes: Story, Error, Project
 
 class Story(db.Model):
@@ -721,41 +722,42 @@ class AnalyzerCriteria:
 
 
   def stative_verb_rule(criteria, kind):
-    try:
-      given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
-      result = AnalyzerCriteria.content_chunk(given_cleaned, kind)
-      no_state = True
-      for x in result:
+    no_state = True
+    if criteria.given is not None:
         try:
-          if hasattr(x, 'label'):
-            if len(x[0][0][1]) > 1:
-              if 'VB' == x[0][0][1]: no_state = False
-              elif 'VBZ' == x[0][0][1]: no_state = False
-              elif 'VBN' == x[0][0][1]: no_state = False
-              elif 'VBG' == x[0][0][1]: no_state = False
-              elif 'VBD' == x[0][0][1]: no_state = False
-            else:
+          given_cleaned = AnalyzerCriteria.clean_component(criteria.given.upper())
+          result = AnalyzerCriteria.content_chunk_given(given_cleaned, kind)
+          for x in result:
+            try:
+              if hasattr(x, 'label'):
+                if len(x[0][0][1]) > 1:
+                  if 'VB' == x[0][0][1]: no_state = False
+                  elif 'VBZ' == x[0][0][1]: no_state = False
+                  elif 'VBN' == x[0][0][1]: no_state = False
+                  elif 'VBG' == x[0][0][1]: no_state = False
+                  elif 'VBD' == x[0][0][1]: no_state = False
+                else:
+                  if 'VB' == x[0][1]: no_state = False
+                  elif 'VBZ' == x[0][1]: no_state = False
+                  elif 'VBN' == x[0][1]: no_state = False
+                  elif 'VBG' == x[0][1]: no_state = False
+                  elif 'VBD' == x[0][1]: no_state = False
+
+              else:
+                if 'VB' == x[1].upper(): no_state = False
+                elif 'VBZ' == x[1].upper(): no_state = False
+                elif 'VBN' == x[1].upper(): no_state = False
+                elif 'VBG' == x[1].upper(): no_state = False
+                elif 'VBD' == x[1].upper(): no_state = False
+            except IndexError as e:
               if 'VB' == x[0][1]: no_state = False
               elif 'VBZ' == x[0][1]: no_state = False
               elif 'VBN' == x[0][1]: no_state = False
               elif 'VBG' == x[0][1]: no_state = False
               elif 'VBD' == x[0][1]: no_state = False
-
-          else:
-            if 'VB' == x[1].upper(): no_state = False
-            elif 'VBZ' == x[1].upper(): no_state = False
-            elif 'VBN' == x[1].upper(): no_state = False
-            elif 'VBG' == x[1].upper(): no_state = False
-            elif 'VBD' == x[1].upper(): no_state = False
-        except IndexError as e:
-          if 'VB' == x[0][1]: no_state = False
-          elif 'VBZ' == x[0][1]: no_state = False
-          elif 'VBN' == x[0][1]: no_state = False
-          elif 'VBG' == x[0][1]: no_state = False
-          elif 'VBD' == x[0][1]: no_state = False
-      return no_state
-    except:
-      return True
+          return no_state
+        except:
+          return no_state
 
 
   def dynamic_verb_rule(criteria, kind):
@@ -767,29 +769,33 @@ class AnalyzerCriteria:
         try:
           if hasattr(x, 'label'):
             if len(x[0][0][1]) > 1:
-              if 'VB' == x[0][0][1]: no_state = False
-              elif 'VBD' == x[0][0][1]: no_state = False
-              elif 'VBN' == x[0][0][1]: no_state = False
-              elif 'VBP' == x[0][0][1]: no_state = False
-              elif 'VBZ' == x[0][0][1]: no_state = False
+              if 'VB' == x[0][0][1]: no_action = False
+              elif 'VBD' == x[0][0][1]: no_action = False
+              elif 'VBN' == x[0][0][1]: no_action = False
+              elif 'VBP' == x[0][0][1]: no_action = False
+              elif 'VBZ' == x[0][0][1]: no_action = False
+              elif 'VBG' == x[0][0][1]: no_action = False
             else:
-              if 'VB' == x[0][1]: no_state = False
-              elif 'VBD' == x[0][1]: no_state = False
-              elif 'VBN' == x[0][1]: no_state = False
-              elif 'VBP' == x[0][1]: no_state = False
-              elif 'VBZ' == x[0][0]: no_state = False
+              if 'VB' == x[0][1]: no_action = False
+              elif 'VBD' == x[0][1]: no_action = False
+              elif 'VBN' == x[0][1]: no_action = False
+              elif 'VBP' == x[0][1]: no_action = False
+              elif 'VBZ' == x[0][0]: no_action = False
+              elif 'VBG' == x[0][0]: no_action = False
           else:
-            if 'VB' == x[1].upper(): no_state = False
-            elif 'VBD' == x[1].upper(): no_state = False
-            elif 'VBN' == x[1].upper(): no_state = False
-            elif 'VBP' == x[1].upper(): no_state = False
-            elif 'VBZ' == x[1].upper(): no_state = False
+            if 'VB' == x[1].upper(): no_action = False
+            elif 'VBD' == x[1].upper(): no_action = False
+            elif 'VBN' == x[1].upper(): no_action = False
+            elif 'VBP' == x[1].upper(): no_action = False
+            elif 'VBZ' == x[1].upper(): no_action = False
+            elif 'VBG' == x[1].upper(): no_action = False
         except IndexError as e:
-          if 'VB' == x[0][1]: no_state = False
-          elif 'VBD' == x[0][1]: no_state = False
-          elif 'VBN' == x[0][1]: no_state = False
-          elif 'VBP' == x[0][1]: no_state = False
-          elif 'VBZ' == x[0][0]: no_state = False
+          if 'VB' == x[0][1]: no_action = False
+          elif 'VBD' == x[0][1]: no_action = False
+          elif 'VBN' == x[0][1]: no_action = False
+          elif 'VBP' == x[0][1]: no_action = False
+          elif 'VBZ' == x[0][0]: no_action = False
+          elif 'VBG' == x[0][0]: no_action = False
     return no_action
 
 
@@ -797,11 +803,14 @@ class AnalyzerCriteria:
     w1=""
     w2=""
     is_similar = True
-    output_list = ['output','outcome','report','interface','message', 'email', 'screen', 'window', 'show', 'content', 'result' ]
-    for x in output_list:
+    output_list = ['output','outcome','report','interface','message', 'email', 'screen', 'window', 'show', 'content', 'result']
+    try:
+      for x in output_list:
         w1 = wordnet.synset(x+'.n.01')
         w2 = wordnet.synset(word[0]+'.n.01')
         if w1.wup_similarity(w2) > 0.34: is_similar = False
+    except WordNetError as e:
+      is_similar = True
     return is_similar
 
 
@@ -875,6 +884,13 @@ class AnalyzerCriteria:
     result = cp.parse(sentence)
     return result
 
+  def content_chunk_given(chunk, kind):
+    sentence = AQUSATagger.parse(chunk)[0]
+    sentence = AnalyzerCriteria.strip_indicators_pos(chunk, sentence, kind)
+    cp = nltk.RegexpParser(CHUNK_GRAMMAR_CRITERIA)
+    result = cp.parse(sentence)
+    return result
+
   def extract_indicator_phrases(text, indicator_type):
     if text:
       indicator_phrase = []
@@ -894,6 +910,9 @@ class AnalyzerCriteria:
   def clean_component(component):
     component = component.replace('\r', '')
     component = component.replace('\n', '')
+    component = component.replace('_'
+                                  '', '')
+    re.sub('[^a-zA-Z0-9,.\{\}\[\]]', '', component)
     return component
 
 class AnalyzerTitle:
@@ -1142,14 +1161,22 @@ class MinimalAnalyzerCriteria:
 # TitleChunker and CriteriaChunker need more work
 class CriteriaChunker:
   def chunk_criteria(criteria):
-    CriteriaChunker.chunk_on_indicators(criteria)
-    if criteria.given is None:
-      potential_when = criteria.text
-      if criteria.when is not None:
-        potential_when = potential_when.replace(criteria.when, "", 1).strip()
-      if criteria.then is not None:
-        potential_when = potential_when.replace(criteria.then, "", 1).strip()
-      CriteriaChunker.means_tags_present(criteria, potential_when)
+    try:
+      CriteriaChunker.chunk_on_indicators(criteria)
+      if criteria.given is None:
+        potential_when = criteria.text
+        if criteria.when is not None:
+          potential_when = potential_when.replace(criteria.when, "", 1).strip()
+        if criteria.then is not None:
+          potential_when = potential_when.replace(criteria.then, "", 1).strip()
+        CriteriaChunker.means_tags_present(criteria, potential_when)
+      if criteria.then is None:
+        if criteria.when is not None:
+          stripped_when = criteria.when.split(',',1)[0]
+          criteria.then = criteria.when.split(',',1)[1]
+          criteria.when = stripped_when
+    except IndexError as e:
+      return criteria.given, criteria.when, criteria.then
     return criteria.given, criteria.when, criteria.then
 
   def detect_indicators(criteria):
